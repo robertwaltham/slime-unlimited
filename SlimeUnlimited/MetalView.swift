@@ -8,6 +8,7 @@
 import Foundation
 import MetalKit
 import SwiftUI
+import simd
 
 struct MetalView: UIViewRepresentable {
     
@@ -59,6 +60,7 @@ struct MetalView: UIViewRepresentable {
         
         var particleCount = 0
         var viewPortSize: vector_uint2 = vector_uint2(x: 0, y: 0)
+        
 
         @Binding var fps: Double
         private var lastDraw = Date()
@@ -120,8 +122,11 @@ extension MetalView.Coordinator {
     
     func draw() {
         
-        let threadgroupSizeMultiplier = 1
-        let maxThreads = 512
+        var colours = RenderColours(background: SIMD4<Float>(0.5,0.5,0.5,1), foreground: SIMD4<Float>(0,0,0,0))
+        
+        
+//        let threadgroupSizeMultiplier = 1
+//        let maxThreads = 512
 //        let particleThreadsPerGroup = MTLSize(width: maxThreads, height: 1, depth: 1)
 //        let particleThreadGroupsPerGrid = MTLSize(width: (max(particleCount / (maxThreads * threadgroupSizeMultiplier), 1)), height: 1, depth:1)
         
@@ -137,7 +142,9 @@ extension MetalView.Coordinator {
             if let drawable = view?.currentDrawable {
                 
                 commandEncoder.setComputePipelineState(firstState)
-                commandEncoder.setTexture(drawable.texture, index: 0)
+                commandEncoder.setTexture(drawable.texture, index: Int(InputTextureIndexDrawable.rawValue))
+                commandEncoder.setBytes(&colours, length: MemoryLayout<RenderColours>.stride, index: Int(InputIndexColours.rawValue))
+
                 commandEncoder.dispatchThreadgroups(textureThreadgroupsPerGrid, threadsPerThreadgroup: textureThreadsPerGroup)
                 
                 
@@ -191,6 +198,11 @@ extension MetalView.Coordinator {
 //        thirdState = try device.makeComputePipelineState(function: thirdPass)
 
     }
+}
+
+struct RenderColours {
+    var background: SIMD4<Float>
+    var foreground: SIMD4<Float>
 }
 
 

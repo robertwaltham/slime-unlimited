@@ -6,10 +6,17 @@
 //
 
 #include <metal_stdlib>
+#import "ShaderTypes.h"
+
 using namespace metal;
 
+struct RenderColours {
+    float4 background;
+    float4 foreground;
+};
 
-kernel void firstPass(texture2d<half, access::write> output [[texture(0)]],
+kernel void firstPass(texture2d<half, access::write> output [[texture(InputTextureIndexDrawable)]],
+                      const device RenderColours& colours [[buffer(InputIndexColours)]],
                       uint2 id [[thread_position_in_grid]]) {
-    output.write(half4(0.5, 1., 1., 1.), id);
+    output.write((half4)colours.background, id);
 }

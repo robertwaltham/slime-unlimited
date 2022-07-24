@@ -17,8 +17,14 @@
 
 #include <simd/simd.h>
 
+
 typedef enum InputIndex {
-    InputIndexParticle = 0
+    InputIndexColours = 0
 } InputIndex;
+
+typedef enum InputTextureIndex {
+    InputTextureIndexDrawable = 0
+} InputTextureIndex;
+
 
 #endif /* ShaderTypes_h */
