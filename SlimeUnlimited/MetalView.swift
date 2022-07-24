@@ -13,11 +13,13 @@ import simd
 struct MetalView: UIViewRepresentable {
     
     @Binding var fps: Double
+    @Binding var background: Color
 
     typealias UIViewType = MTKView
     
-    init(fps: Binding<Double>) {
+    init(fps: Binding<Double>, background: Binding<Color>) {
         self._fps = fps
+        self._background = background
     }
 
     func makeUIView(context: Context) -> MTKView {
@@ -41,7 +43,7 @@ struct MetalView: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: MTKView, context: Context) {
-    
+        context.coordinator.colours.background = background.float4()
     }
     
     func makeCoordinator() -> Coordinator {
@@ -61,8 +63,11 @@ struct MetalView: UIViewRepresentable {
         var particleCount = 0
         var viewPortSize: vector_uint2 = vector_uint2(x: 0, y: 0)
         
+        var colours = RenderColours(background: SIMD4<Float>(0.5,0.5,0.5,1), foreground: SIMD4<Float>(0,0,0,0))
 
         @Binding var fps: Double
+        
+        
         private var lastDraw = Date()
 
         func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
@@ -86,7 +91,6 @@ struct MetalView: UIViewRepresentable {
                 self.metalDevice = metalDevice
             }
             self._fps = parent._fps
-            
             super.init()
             
             buildPipeline()
@@ -121,9 +125,6 @@ extension MetalView.Coordinator {
 extension MetalView.Coordinator {
     
     func draw() {
-        
-        var colours = RenderColours(background: SIMD4<Float>(0.5,0.5,0.5,1), foreground: SIMD4<Float>(0,0,0,0))
-        
         
 //        let threadgroupSizeMultiplier = 1
 //        let maxThreads = 512
@@ -208,6 +209,18 @@ struct RenderColours {
 
 struct MetalView_Previews: PreviewProvider {
     static var previews: some View {
-        MetalView(fps: .constant(60))
+        MetalView(fps: .constant(60), background: .constant(Color.gray))
+    }
+}
+
+private extension Color {
+    func float4() -> SIMD4<Float> {
+        if let components = cgColor?.components {
+            return SIMD4<Float>(Float(components[0]),
+                                Float(components[1]),
+                                Float(components[2]),
+                                Float(components[3]))
+        }
+        return SIMD4<Float>(0,0,0,0)
     }
 }

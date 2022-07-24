@@ -18,7 +18,7 @@ struct ContentView: View {
             Text("\(fps, specifier: "%.0f")")
             ColorPicker("Choose a background color", selection: $bgColor)
                 .padding(.horizontal)
-            MetalView(fps: $fps)
+            MetalView(fps: $fps, background: $bgColor)
         }
     }
 }
