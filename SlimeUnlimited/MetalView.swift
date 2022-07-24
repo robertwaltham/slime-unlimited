@@ -11,19 +11,24 @@ import SwiftUI
 
 struct MetalView: UIViewRepresentable {
     
+    @Binding var fps: Double
+
     typealias UIViewType = MTKView
+    
+    init(fps: Binding<Double>) {
+        self._fps = fps
+    }
 
     func makeUIView(context: Context) -> MTKView {
         let mtkView = MTKViewWithTouches()
         mtkView.delegate = context.coordinator
         
-        mtkView.preferredFramesPerSecond = 60
         mtkView.enableSetNeedsDisplay = true
         if let metalDevice = MTLCreateSystemDefaultDevice() {
             mtkView.device = metalDevice
         }
         mtkView.framebufferOnly = false
-        mtkView.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
+        mtkView.clearColor = MTLClearColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 1)
         mtkView.drawableSize = mtkView.frame.size
         mtkView.enableSetNeedsDisplay = true
         mtkView.isPaused = false
@@ -44,26 +49,33 @@ struct MetalView: UIViewRepresentable {
     
     class Coordinator : NSObject, MTKViewDelegate {
         
-        var view: MTKView!
+        var view: MTKView?
         var metalDevice: MTLDevice!
         var metalCommandQueue: MTLCommandQueue!
         
+        var firstState: MTLComputePipelineState!
+        var secondState: MTLComputePipelineState!
+        var thirdState: MTLComputePipelineState!
+        
+        var particleCount = 0
+        var viewPortSize: vector_uint2 = vector_uint2(x: 0, y: 0)
+
+        @Binding var fps: Double
+        private var lastDraw = Date()
+
         func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
-            
+            viewPortSize = vector_uint2(x: UInt32(size.width), y: UInt32(size.height))
         }
         
         func draw(in view: MTKView) {
             
-            if let commandBuffer = metalCommandQueue.makeCommandBuffer(),
-               let commandEncoder = commandBuffer.makeComputeCommandEncoder() {
-                
-                if let drawable = view.currentDrawable {
-                    
-                    commandEncoder.endEncoding()
-                    commandBuffer.present(drawable)
-                }
-                
-            }
+            self.view = view
+            
+            let start = Date()
+            fps = 1 / start.timeIntervalSince(lastDraw)
+            lastDraw = start
+            
+            draw()
         }
         
         init(_ parent: MetalView) {
@@ -71,12 +83,13 @@ struct MetalView: UIViewRepresentable {
             if let metalDevice = MTLCreateSystemDefaultDevice() {
                 self.metalDevice = metalDevice
             }
+            self._fps = parent._fps
             
-            self.metalCommandQueue = metalDevice.makeCommandQueue()!
             super.init()
-        }
-        
+            
+            buildPipeline()
 
+        }
     }
 }
 
@@ -101,8 +114,88 @@ extension MetalView.Coordinator {
     }
 }
 
+// MARK:  - Metal
+
+extension MetalView.Coordinator {
+    
+    func draw() {
+        
+        let threadgroupSizeMultiplier = 1
+        let maxThreads = 512
+//        let particleThreadsPerGroup = MTLSize(width: maxThreads, height: 1, depth: 1)
+//        let particleThreadGroupsPerGrid = MTLSize(width: (max(particleCount / (maxThreads * threadgroupSizeMultiplier), 1)), height: 1, depth:1)
+        
+        let w = firstState.threadExecutionWidth
+        let h = firstState.maxTotalThreadsPerThreadgroup / w
+        let textureThreadsPerGroup = MTLSizeMake(w, h, 1)
+        let textureThreadgroupsPerGrid = MTLSize(width: (Int(viewPortSize.x) + w - 1) / w, height: (Int(viewPortSize.y) + h - 1) / h, depth: 1)
+               
+        
+        if let commandBuffer = metalCommandQueue.makeCommandBuffer(),
+           let commandEncoder = commandBuffer.makeComputeCommandEncoder() {
+            
+            if let drawable = view?.currentDrawable {
+                
+                commandEncoder.setComputePipelineState(firstState)
+                commandEncoder.setTexture(drawable.texture, index: 0)
+                commandEncoder.dispatchThreadgroups(textureThreadgroupsPerGrid, threadsPerThreadgroup: textureThreadsPerGroup)
+                
+                
+                commandEncoder.endEncoding()
+                commandBuffer.present(drawable)
+                
+            }
+            commandBuffer.commit()
+        }
+    }
+    
+    func buildPipeline() {
+        
+        // make Command queue
+        guard let queue = metalDevice.makeCommandQueue() else {
+            fatalError("can't make queue")
+        }
+        metalCommandQueue = queue
+
+        
+        // pipeline state
+        do {
+            try buildRenderPipelineWithDevice(device: metalDevice)
+        } catch {
+            fatalError("Unable to compile render pipeline state.  Error info: \(error)")
+        }
+
+    }
+
+    
+    func buildRenderPipelineWithDevice(device: MTLDevice) throws {
+        /// Build a render state pipeline object
+        
+        guard let library = device.makeDefaultLibrary() else {
+            fatalError("can't create libray")
+        }
+        
+        guard let firstPass = library.makeFunction(name: "firstPass") else {
+            fatalError("can't create first pass")
+        }
+        firstState = try device.makeComputePipelineState(function: firstPass)
+        
+//        guard let secondPass = library.makeFunction(name: "secondPass") else {
+//            fatalError("can't create first pass")
+//        }
+//        secondState = try device.makeComputePipelineState(function: secondPass)
+//
+//        guard let thirdPass = library.makeFunction(name: "thirdPass") else {
+//            fatalError("can't create first pass")
+//        }
+//        thirdState = try device.makeComputePipelineState(function: thirdPass)
+
+    }
+}
+
+
 struct MetalView_Previews: PreviewProvider {
     static var previews: some View {
-        MetalView()
+        MetalView(fps: .constant(60))
     }
 }

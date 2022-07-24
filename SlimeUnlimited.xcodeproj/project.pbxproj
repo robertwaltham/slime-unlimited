@@ -13,6 +13,7 @@
 		D1029D63288CBC2E00F0A35F /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D1029D62288CBC2E00F0A35F /* Preview Assets.xcassets */; };
 		D1029D6A288CBCAD00F0A35F /* MetalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1029D69288CBCAD00F0A35F /* MetalView.swift */; };
 		D1029D6C288CBCF200F0A35F /* MTKViewWithTouches.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1029D6B288CBCF200F0A35F /* MTKViewWithTouches.swift */; };
+		D1029D6E288CC74500F0A35F /* MainShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = D1029D6D288CC74500F0A35F /* MainShaders.metal */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -23,6 +24,8 @@
 		D1029D62288CBC2E00F0A35F /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		D1029D69288CBCAD00F0A35F /* MetalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalView.swift; sourceTree = "<group>"; };
 		D1029D6B288CBCF200F0A35F /* MTKViewWithTouches.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MTKViewWithTouches.swift; sourceTree = "<group>"; };
+		D1029D6D288CC74500F0A35F /* MainShaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = MainShaders.metal; sourceTree = "<group>"; };
+		D1029D6F288CC75A00F0A35F /* ShaderTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ShaderTypes.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -58,6 +61,8 @@
 				D1029D5B288CBC2A00F0A35F /* SlimeUnlimitedApp.swift */,
 				D1029D5D288CBC2A00F0A35F /* ContentView.swift */,
 				D1029D69288CBCAD00F0A35F /* MetalView.swift */,
+				D1029D6D288CC74500F0A35F /* MainShaders.metal */,
+				D1029D6F288CC75A00F0A35F /* ShaderTypes.h */,
 				D1029D6B288CBCF200F0A35F /* MTKViewWithTouches.swift */,
 				D1029D5F288CBC2E00F0A35F /* Assets.xcassets */,
 				D1029D61288CBC2E00F0A35F /* Preview Content */,
@@ -143,6 +148,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D1029D6E288CC74500F0A35F /* MainShaders.metal in Sources */,
 				D1029D6A288CBCAD00F0A35F /* MetalView.swift in Sources */,
 				D1029D6C288CBCF200F0A35F /* MTKViewWithTouches.swift in Sources */,
 				D1029D5E288CBC2A00F0A35F /* ContentView.swift in Sources */,

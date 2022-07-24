@@ -7,9 +7,16 @@
 
 import SwiftUI
 
+
 struct ContentView: View {
+    
+    @State var fps: Double = 0
+
     var body: some View {
-        MetalView()
+        VStack {
+            Text("\(fps, specifier: "%.0f")")
+            MetalView(fps: $fps)
+        }
     }
 }
 
