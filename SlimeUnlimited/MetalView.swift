@@ -14,12 +14,14 @@ struct MetalView: UIViewRepresentable {
     
     @Binding var fps: Double
     @Binding var background: Color
+    @Binding var drawParticles: Bool
 
     typealias UIViewType = MTKView
     
-    init(fps: Binding<Double>, background: Binding<Color>) {
+    init(fps: Binding<Double>, background: Binding<Color>, drawParticles: Binding<Bool>) {
         self._fps = fps
         self._background = background
+        self._drawParticles = drawParticles
     }
 
     func makeUIView(context: Context) -> MTKView {
@@ -44,6 +46,7 @@ struct MetalView: UIViewRepresentable {
     
     func updateUIView(_ uiView: MTKView, context: Context) {
         context.coordinator.colours.background = background.float4()
+        context.coordinator.drawParticles = drawParticles
     }
     
     func makeCoordinator() -> Coordinator {
@@ -69,6 +72,7 @@ struct MetalView: UIViewRepresentable {
         var radius: Float = 50
         
         var drawRadius: Int = 4
+        var drawParticles = false
         
         var viewPortSize: vector_uint2 = vector_uint2(x: 0, y: 0)
 
@@ -185,7 +189,7 @@ extension MetalView.Coordinator {
                 
                 // third pass - draw particles
                 
-                if let particleBuffer = particleBuffer {
+                if drawParticles, let particleBuffer = particleBuffer {
                     commandEncoder.setComputePipelineState(thirdState)
                     commandEncoder.setTexture(drawable.texture, index: 0)
                     commandEncoder.setBuffer(particleBuffer, offset: 0, index: Int(InputIndexParticleCount.rawValue))
@@ -249,27 +253,23 @@ extension MetalView.Coordinator {
     
     
     func initializeParticlesIfNeeded() {
-        
         guard particleBuffer == nil else {
             return
         }
         
+        let speedRange = -maxSpeed...maxSpeed
+        let xRange = margin...(Float(viewPortSize.x) - margin)
+        let yRange = margin...(Float(viewPortSize.y) - margin)
+
         for _ in 0 ..< particleCount {
-            let speed = SIMD2<Float>(Float.random(min: -maxSpeed, max: maxSpeed), Float.random(min: -maxSpeed, max: maxSpeed))
-            let position = SIMD2<Float>(randomPosition(length: UInt(viewPortSize.x)), randomPosition(length: UInt(viewPortSize.y)))
+            let speed = SIMD2<Float>(Float.random(in: speedRange), Float.random(in: speedRange))
+            let position = SIMD2<Float>(Float.random(in: xRange), Float.random(in: yRange))
             let particle = Particle(position: position, velocity: speed)
             particles.append(particle)
         }
         let size = particles.count * MemoryLayout<Particle>.size
         particleBuffer = metalDevice.makeBuffer(bytes: &particles, length: size, options: [])
 
-    }
-    
-    private func randomPosition(length: UInt) -> Float {
-        
-        let maxSize = length - (UInt(margin) * 2)
-        
-        return Float(arc4random_uniform(UInt32(maxSize)) + UInt32(margin))
     }
     
     private func extractParticles() {
@@ -294,7 +294,7 @@ struct RenderColours {
 
 struct MetalView_Previews: PreviewProvider {
     static var previews: some View {
-        MetalView(fps: .constant(60), background: .constant(Color.gray))
+        MetalView(fps: .constant(60), background: .constant(Color.gray), drawParticles: .constant(false))
     }
 }
 
@@ -320,16 +320,3 @@ private struct Particle {
         return "p<\(position.x),\(position.y)> v<\(velocity.x),\(velocity.y)> a<\(acceleration.x),\(acceleration.y) f<\(force.x),\(force.y)>"
     }
 }
-
-private extension Float {
-
-    static var random: Float {
-        return Float(arc4random() / 0xFFFFFFFF) // TODO: Fix floating point representation warning, implement this properly
-    }
-
-    static func random(min: Float, max: Float) -> Float {
-        return Float.random * (max - min) + min
-    }
-}
-
-
