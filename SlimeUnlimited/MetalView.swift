@@ -60,10 +60,22 @@ struct MetalView: UIViewRepresentable {
         var secondState: MTLComputePipelineState!
         var thirdState: MTLComputePipelineState!
         
-        var particleCount = 0
-        var viewPortSize: vector_uint2 = vector_uint2(x: 0, y: 0)
+        var particleBuffer: MTLBuffer!
         
-        var colours = RenderColours(background: SIMD4<Float>(0.5,0.5,0.5,1), foreground: SIMD4<Float>(0,0,0,0))
+        var particleCount = 50
+        
+        var maxSpeed: Float = 10
+        var margin: Float = 50
+        var radius: Float = 50
+        
+        var drawRadius: Int = 4
+        
+        var viewPortSize: vector_uint2 = vector_uint2(x: 0, y: 0)
+
+        fileprivate var particles = [Particle]()
+//        var obstacles = [Obstacle]()
+        
+        var colours = RenderColours()
 
         @Binding var fps: Double
         
@@ -126,10 +138,12 @@ extension MetalView.Coordinator {
     
     func draw() {
         
-//        let threadgroupSizeMultiplier = 1
-//        let maxThreads = 512
-//        let particleThreadsPerGroup = MTLSize(width: maxThreads, height: 1, depth: 1)
-//        let particleThreadGroupsPerGrid = MTLSize(width: (max(particleCount / (maxThreads * threadgroupSizeMultiplier), 1)), height: 1, depth:1)
+        initializeParticlesIfNeeded()
+
+        let threadgroupSizeMultiplier = 1
+        let maxThreads = 512
+        let particleThreadsPerGroup = MTLSize(width: maxThreads, height: 1, depth: 1)
+        let particleThreadGroupsPerGrid = MTLSize(width: (max(particleCount / (maxThreads * threadgroupSizeMultiplier), 1)), height: 1, depth:1)
         
         let w = firstState.threadExecutionWidth
         let h = firstState.maxTotalThreadsPerThreadgroup / w
@@ -140,20 +154,53 @@ extension MetalView.Coordinator {
         if let commandBuffer = metalCommandQueue.makeCommandBuffer(),
            let commandEncoder = commandBuffer.makeComputeCommandEncoder() {
             
+            
+            if let particleBuffer = particleBuffer {
+                
+                commandEncoder.setComputePipelineState(secondState)
+                commandEncoder.setBuffer(particleBuffer, offset: 0, index: Int(InputIndexParticles.rawValue))
+                commandEncoder.setBytes(&particleCount, length: MemoryLayout<Int>.stride, index: Int(InputIndexParticleCount.rawValue))
+//                commandEncoder.setBytes(&maxSpeed, length: MemoryLayout<Float>.stride, index: Int(SecondPassInputIndexMaxSpeed.rawValue))
+//                commandEncoder.setBytes(&margin, length: MemoryLayout<Int>.stride, index: Int(SecondPassInputIndexMargin.rawValue))
+//                commandEncoder.setBytes(&alignCoefficient, length: MemoryLayout<Float>.stride, index: Int(SecondPassInputIndexAlign.rawValue))
+//                commandEncoder.setBytes(&separateCoefficient, length: MemoryLayout<Float>.stride, index: Int(SecondPassInputIndexSeparate.rawValue))
+//                commandEncoder.setBytes(&cohereCoefficient, length: MemoryLayout<Float>.stride, index: Int(SecondPassInputIndexCohere.rawValue))
+//                commandEncoder.setBytes(&radius, length: MemoryLayout<Float>.stride, index: Int(SecondPassInputIndexRadius.rawValue))
+//                commandEncoder.setBytes(&viewPortSize.x, length: MemoryLayout<UInt>.stride, index: Int(SecondPassInputIndexWidth.rawValue))
+//                commandEncoder.setBytes(&viewPortSize.y, length: MemoryLayout<UInt>.stride, index: Int(SecondPassInputIndexHeight.rawValue))
+//                commandEncoder.setBuffer(obstacleBuffer(), offset: 0, index: Int(SecondPassInputIndexObstacle.rawValue))
+//                var count = obstacles.count
+//                commandEncoder.setBytes(&count, length: MemoryLayout<Int>.stride, index: Int(SecondPassInputIndexObstacleCount.rawValue))
+
+                commandEncoder.dispatchThreadgroups(particleThreadGroupsPerGrid, threadsPerThreadgroup: particleThreadsPerGroup)
+            }
+            
             if let drawable = view?.currentDrawable {
                 
+                // Draw Background Colour
                 commandEncoder.setComputePipelineState(firstState)
                 commandEncoder.setTexture(drawable.texture, index: Int(InputTextureIndexDrawable.rawValue))
                 commandEncoder.setBytes(&colours, length: MemoryLayout<RenderColours>.stride, index: Int(InputIndexColours.rawValue))
-
                 commandEncoder.dispatchThreadgroups(textureThreadgroupsPerGrid, threadsPerThreadgroup: textureThreadsPerGroup)
                 
+                // third pass - draw particles
+                
+                if let particleBuffer = particleBuffer {
+                    commandEncoder.setComputePipelineState(thirdState)
+                    commandEncoder.setTexture(drawable.texture, index: 0)
+                    commandEncoder.setBuffer(particleBuffer, offset: 0, index: Int(InputIndexParticleCount.rawValue))
+                    commandEncoder.setBytes(&drawRadius, length: MemoryLayout<Int>.stride, index: Int(InputIndexDrawSpan.rawValue))
+                    commandEncoder.dispatchThreadgroups(particleThreadGroupsPerGrid, threadsPerThreadgroup: particleThreadsPerGroup)
+                }
                 
                 commandEncoder.endEncoding()
                 commandBuffer.present(drawable)
                 
+            } else {
+                fatalError("no drawable")
             }
             commandBuffer.commit()
+            extractParticles()
         }
     }
     
@@ -188,22 +235,60 @@ extension MetalView.Coordinator {
         }
         firstState = try device.makeComputePipelineState(function: firstPass)
         
-//        guard let secondPass = library.makeFunction(name: "secondPass") else {
-//            fatalError("can't create first pass")
-//        }
-//        secondState = try device.makeComputePipelineState(function: secondPass)
-//
-//        guard let thirdPass = library.makeFunction(name: "thirdPass") else {
-//            fatalError("can't create first pass")
-//        }
-//        thirdState = try device.makeComputePipelineState(function: thirdPass)
+        guard let secondPass = library.makeFunction(name: "secondPass") else {
+            fatalError("can't create first pass")
+        }
+        secondState = try device.makeComputePipelineState(function: secondPass)
+
+        guard let thirdPass = library.makeFunction(name: "thirdPass") else {
+            fatalError("can't create first pass")
+        }
+        thirdState = try device.makeComputePipelineState(function: thirdPass)
 
     }
+    
+    
+    func initializeParticlesIfNeeded() {
+        
+        guard particleBuffer == nil else {
+            return
+        }
+        
+        for _ in 0 ..< particleCount {
+            let speed = SIMD2<Float>(Float.random(min: -maxSpeed, max: maxSpeed), Float.random(min: -maxSpeed, max: maxSpeed))
+            let position = SIMD2<Float>(randomPosition(length: UInt(viewPortSize.x)), randomPosition(length: UInt(viewPortSize.y)))
+            let particle = Particle(position: position, velocity: speed)
+            particles.append(particle)
+        }
+        let size = particles.count * MemoryLayout<Particle>.size
+        particleBuffer = metalDevice.makeBuffer(bytes: &particles, length: size, options: [])
+
+    }
+    
+    private func randomPosition(length: UInt) -> Float {
+        
+        let maxSize = length - (UInt(margin) * 2)
+        
+        return Float(arc4random_uniform(UInt32(maxSize)) + UInt32(margin))
+    }
+    
+    private func extractParticles() {
+        
+        guard particleBuffer != nil else {
+            return
+        }
+        
+        particles = []
+        for i in 0..<particleCount {
+            particles.append((particleBuffer.contents() + (i * MemoryLayout<Particle>.size)).load(as: Particle.self))
+        }
+    }
+
 }
 
 struct RenderColours {
-    var background: SIMD4<Float>
-    var foreground: SIMD4<Float>
+    var background = SIMD4<Float>(0,0,0,0)
+    var foreground = SIMD4<Float>(0,0,0,0)
 }
 
 
@@ -224,3 +309,27 @@ private extension Color {
         return SIMD4<Float>(0,0,0,0)
     }
 }
+
+private struct Particle {
+    var position: SIMD2<Float>
+    var velocity: SIMD2<Float>
+    var acceleration: SIMD2<Float> = SIMD2<Float>(0,0)
+    var force: SIMD2<Float> = SIMD2<Float>(0,0)
+
+    var description: String {
+        return "p<\(position.x),\(position.y)> v<\(velocity.x),\(velocity.y)> a<\(acceleration.x),\(acceleration.y) f<\(force.x),\(force.y)>"
+    }
+}
+
+private extension Float {
+
+    static var random: Float {
+        return Float(arc4random() / 0xFFFFFFFF) // TODO: Fix floating point representation warning, implement this properly
+    }
+
+    static func random(min: Float, max: Float) -> Float {
+        return Float.random * (max - min) + min
+    }
+}
+
+

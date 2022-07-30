@@ -11,7 +11,7 @@ import SwiftUI
 struct ContentView: View {
     
     @State var fps: Double = 0
-    @State private var bgColor = Color.blue.opacity(0.5)
+    @State private var bgColor = Color(.sRGB, red: 0.7, green: 0.9, blue: 1, opacity: 1)
     
     var body: some View {
         VStack {
