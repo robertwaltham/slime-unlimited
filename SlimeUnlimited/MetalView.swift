@@ -15,13 +15,15 @@ struct MetalView: UIViewRepresentable {
     @Binding var fps: Double
     @Binding var background: Color
     @Binding var drawParticles: Bool
+    @Binding var drawPath: Bool
 
     typealias UIViewType = MTKView
     
-    init(fps: Binding<Double>, background: Binding<Color>, drawParticles: Binding<Bool>) {
+    init(fps: Binding<Double>, background: Binding<Color>, drawParticles: Binding<Bool> , drawPath: Binding<Bool>) {
         self._fps = fps
         self._background = background
         self._drawParticles = drawParticles
+        self._drawPath = drawPath
     }
 
     func makeUIView(context: Context) -> MTKView {
@@ -47,6 +49,7 @@ struct MetalView: UIViewRepresentable {
     func updateUIView(_ uiView: MTKView, context: Context) {
         context.coordinator.colours.background = background.float4()
         context.coordinator.drawParticles = drawParticles
+        context.coordinator.drawPath = drawPath
     }
     
     func makeCoordinator() -> Coordinator {
@@ -59,9 +62,9 @@ struct MetalView: UIViewRepresentable {
         var metalDevice: MTLDevice!
         var metalCommandQueue: MTLCommandQueue!
         
-        var firstState: MTLComputePipelineState!
-        var secondState: MTLComputePipelineState!
-        var thirdState: MTLComputePipelineState!
+        var pathTexture: MTLTexture!
+        
+        var states: [MTLComputePipelineState] = []
         
         var particleBuffer: MTLBuffer!
         
@@ -73,8 +76,14 @@ struct MetalView: UIViewRepresentable {
         
         var drawRadius: Int = 4
         var drawParticles = false
+        var drawPath = false
         
-        var viewPortSize: vector_uint2 = vector_uint2(x: 0, y: 0)
+        
+        // skip all rendering, in the case the hardware doesn't support what we're doing (like in previews)
+        var skipDraw = false
+        
+        var viewPortSize = vector_uint2(x: 0, y: 0)
+        
 
         fileprivate var particles = [Particle]()
 //        var obstacles = [Obstacle]()
@@ -92,6 +101,10 @@ struct MetalView: UIViewRepresentable {
         
         func draw(in view: MTKView) {
             
+            guard !skipDraw else {
+                return
+            }
+            
             self.view = view
             
             let start = Date()
@@ -106,11 +119,20 @@ struct MetalView: UIViewRepresentable {
             if let metalDevice = MTLCreateSystemDefaultDevice() {
                 self.metalDevice = metalDevice
             }
+            
+ 
+            
             self._fps = parent._fps
             super.init()
             
+            guard self.metalDevice.supportsFamily(.common3) || self.metalDevice.supportsFamily(.apple4) else {
+                print("doesn't support read_write textures")
+                skipDraw = true
+                return
+            }
+            
             buildPipeline()
-
+            
         }
     }
 }
@@ -143,14 +165,17 @@ extension MetalView.Coordinator {
     func draw() {
         
         initializeParticlesIfNeeded()
+        if pathTexture == nil {
+            pathTexture = makeTexture(device: metalDevice, drawableSize: viewPortSize)
+        }
 
         let threadgroupSizeMultiplier = 1
         let maxThreads = 512
         let particleThreadsPerGroup = MTLSize(width: maxThreads, height: 1, depth: 1)
         let particleThreadGroupsPerGrid = MTLSize(width: (max(particleCount / (maxThreads * threadgroupSizeMultiplier), 1)), height: 1, depth:1)
         
-        let w = firstState.threadExecutionWidth
-        let h = firstState.maxTotalThreadsPerThreadgroup / w
+        let w = states[0].threadExecutionWidth
+        let h = states[0].maxTotalThreadsPerThreadgroup / w
         let textureThreadsPerGroup = MTLSizeMake(w, h, 1)
         let textureThreadgroupsPerGrid = MTLSize(width: (Int(viewPortSize.x) + w - 1) / w, height: (Int(viewPortSize.y) + h - 1) / h, depth: 1)
                
@@ -161,20 +186,11 @@ extension MetalView.Coordinator {
             
             if let particleBuffer = particleBuffer {
                 
-                commandEncoder.setComputePipelineState(secondState)
+                commandEncoder.setComputePipelineState(states[1])
+                commandEncoder.setTexture(pathTexture, index: Int(InputTextureIndexPath.rawValue))
                 commandEncoder.setBuffer(particleBuffer, offset: 0, index: Int(InputIndexParticles.rawValue))
                 commandEncoder.setBytes(&particleCount, length: MemoryLayout<Int>.stride, index: Int(InputIndexParticleCount.rawValue))
-//                commandEncoder.setBytes(&maxSpeed, length: MemoryLayout<Float>.stride, index: Int(SecondPassInputIndexMaxSpeed.rawValue))
-//                commandEncoder.setBytes(&margin, length: MemoryLayout<Int>.stride, index: Int(SecondPassInputIndexMargin.rawValue))
-//                commandEncoder.setBytes(&alignCoefficient, length: MemoryLayout<Float>.stride, index: Int(SecondPassInputIndexAlign.rawValue))
-//                commandEncoder.setBytes(&separateCoefficient, length: MemoryLayout<Float>.stride, index: Int(SecondPassInputIndexSeparate.rawValue))
-//                commandEncoder.setBytes(&cohereCoefficient, length: MemoryLayout<Float>.stride, index: Int(SecondPassInputIndexCohere.rawValue))
-//                commandEncoder.setBytes(&radius, length: MemoryLayout<Float>.stride, index: Int(SecondPassInputIndexRadius.rawValue))
-//                commandEncoder.setBytes(&viewPortSize.x, length: MemoryLayout<UInt>.stride, index: Int(SecondPassInputIndexWidth.rawValue))
-//                commandEncoder.setBytes(&viewPortSize.y, length: MemoryLayout<UInt>.stride, index: Int(SecondPassInputIndexHeight.rawValue))
-//                commandEncoder.setBuffer(obstacleBuffer(), offset: 0, index: Int(SecondPassInputIndexObstacle.rawValue))
-//                var count = obstacles.count
-//                commandEncoder.setBytes(&count, length: MemoryLayout<Int>.stride, index: Int(SecondPassInputIndexObstacleCount.rawValue))
+                commandEncoder.setBytes(&colours, length: MemoryLayout<RenderColours>.stride, index: Int(InputIndexColours.rawValue))
 
                 commandEncoder.dispatchThreadgroups(particleThreadGroupsPerGrid, threadsPerThreadgroup: particleThreadsPerGroup)
             }
@@ -182,20 +198,27 @@ extension MetalView.Coordinator {
             if let drawable = view?.currentDrawable {
                 
                 // Draw Background Colour
-                commandEncoder.setComputePipelineState(firstState)
+                commandEncoder.setComputePipelineState(states[0])
                 commandEncoder.setTexture(drawable.texture, index: Int(InputTextureIndexDrawable.rawValue))
-                commandEncoder.setBytes(&colours, length: MemoryLayout<RenderColours>.stride, index: Int(InputIndexColours.rawValue))
                 commandEncoder.dispatchThreadgroups(textureThreadgroupsPerGrid, threadsPerThreadgroup: textureThreadsPerGroup)
                 
-                // third pass - draw particles
+                
+                // draw path
+                
+                if drawPath {
+                    commandEncoder.setComputePipelineState(states[3])
+                    commandEncoder.dispatchThreadgroups(textureThreadgroupsPerGrid, threadsPerThreadgroup: textureThreadsPerGroup)
+                }
+
+                // draw particles
                 
                 if drawParticles, let particleBuffer = particleBuffer {
-                    commandEncoder.setComputePipelineState(thirdState)
-                    commandEncoder.setTexture(drawable.texture, index: 0)
+                    commandEncoder.setComputePipelineState(states[2])
                     commandEncoder.setBuffer(particleBuffer, offset: 0, index: Int(InputIndexParticleCount.rawValue))
                     commandEncoder.setBytes(&drawRadius, length: MemoryLayout<Int>.stride, index: Int(InputIndexDrawSpan.rawValue))
                     commandEncoder.dispatchThreadgroups(particleThreadGroupsPerGrid, threadsPerThreadgroup: particleThreadsPerGroup)
                 }
+                
                 
                 commandEncoder.endEncoding()
                 commandBuffer.present(drawable)
@@ -234,25 +257,16 @@ extension MetalView.Coordinator {
             fatalError("can't create libray")
         }
         
-        guard let firstPass = library.makeFunction(name: "firstPass") else {
-            fatalError("can't create first pass")
+        states = try ["firstPass", "secondPass", "thirdPass", "fourthPass"].map {
+            guard let function = library.makeFunction(name: $0) else {
+                fatalError("Can't make function \($0)")
+            }
+            return try device.makeComputePipelineState(function: function)
         }
-        firstState = try device.makeComputePipelineState(function: firstPass)
-        
-        guard let secondPass = library.makeFunction(name: "secondPass") else {
-            fatalError("can't create first pass")
-        }
-        secondState = try device.makeComputePipelineState(function: secondPass)
-
-        guard let thirdPass = library.makeFunction(name: "thirdPass") else {
-            fatalError("can't create first pass")
-        }
-        thirdState = try device.makeComputePipelineState(function: thirdPass)
-
     }
     
     
-    func initializeParticlesIfNeeded() {
+    private func initializeParticlesIfNeeded() {
         guard particleBuffer == nil else {
             return
         }
@@ -283,18 +297,34 @@ extension MetalView.Coordinator {
             particles.append((particleBuffer.contents() + (i * MemoryLayout<Particle>.size)).load(as: Particle.self))
         }
     }
+    
+    private func makeTexture(device: MTLDevice, drawableSize: vector_uint2) -> MTLTexture {
+        let descriptor = MTLTextureDescriptor()
+        
+        descriptor.storageMode = .private
+        descriptor.usage = MTLTextureUsage(rawValue: MTLTextureUsage.shaderWrite.rawValue | MTLTextureUsage.shaderRead.rawValue)
+        descriptor.width = Int(drawableSize.x)
+        descriptor.height = Int(drawableSize.y)
+        
+        guard let texture = device.makeTexture(descriptor: descriptor) else {
+            fatalError("can't make texture")
+        }
+
+        return texture
+    }
 
 }
 
 struct RenderColours {
     var background = SIMD4<Float>(0,0,0,0)
     var foreground = SIMD4<Float>(0,0,0,0)
+    var particle = SIMD4<Float>(0.5,0.5,1,1)
 }
 
 
 struct MetalView_Previews: PreviewProvider {
     static var previews: some View {
-        MetalView(fps: .constant(60), background: .constant(Color.gray), drawParticles: .constant(false))
+        MetalView(fps: .constant(60), background: .constant(Color.gray), drawParticles: .constant(false), drawPath: .constant(true))
     }
 }
 

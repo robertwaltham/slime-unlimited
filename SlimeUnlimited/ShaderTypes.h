@@ -26,7 +26,8 @@ typedef enum InputIndex {
 } InputIndex;
 
 typedef enum InputTextureIndex {
-    InputTextureIndexDrawable = 0
+    InputTextureIndexDrawable = 0,
+    InputTextureIndexPath = 1
 } InputTextureIndex;
 
 
