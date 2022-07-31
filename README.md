@@ -16,3 +16,11 @@ https://cargocollective.com/sagejenson/physarum
 I based my implementation (in part) off of this code:
 https://github.com/fogleman/physarum
 
+# Screenshots
+
+![IMG_0015](https://user-images.githubusercontent.com/438673/182011902-b38318f6-19ab-4202-a245-5a398e8d7408.PNG)
+
+
+
+https://user-images.githubusercontent.com/438673/182012047-c7fd477d-d58f-4b44-9fb7-f44b2fee31f0.mov
+
