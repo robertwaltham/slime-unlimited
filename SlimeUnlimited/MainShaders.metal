@@ -100,12 +100,12 @@ kernel void secondPass(texture2d<half, access::read_write> output [[texture(Inpu
     if (left_colour[channel] > center_colour[channel] && left_colour[channel] > right_colour[channel]) {
         velocity = rotate_vector(velocity, turn_angle);
     } else if (right_colour[channel] > center_colour[channel] && right_colour[channel] > left_colour[channel]) {
-        velocity = rotate_vector(velocity, turn_angle);
+        velocity = rotate_vector(velocity, -turn_angle);
     } else if (right_colour[channel] - left_colour[channel] < 0.1) {
         if (random(position) < 0.5) {
             velocity = rotate_vector(velocity, turn_angle);
         } else {
-            velocity = rotate_vector(velocity, turn_angle);
+            velocity = rotate_vector(velocity, -turn_angle);
         }
     }
 
