@@ -36,6 +36,7 @@
       "size" : "60x60"
     },
     {
+      "filename" : "slime_180x180.png",
       "idiom" : "iphone",
       "scale" : "3x",
       "size" : "60x60"
@@ -72,15 +73,23 @@
     },
     {
       "idiom" : "ipad",
+      "scale" : "1x",
+      "size" : "76x76"
+    },
+    {
+      "filename" : "slime_152x152.png",
+      "idiom" : "ipad",
       "scale" : "2x",
       "size" : "76x76"
     },
     {
+      "filename" : "slime_167x167.png",
       "idiom" : "ipad",
       "scale" : "2x",
       "size" : "83.5x83.5"
     },
     {
+      "filename" : "DALL·E 2022-07-30 22.48.25 - an S that looks like slime mold, app icon style.png",
       "idiom" : "ios-marketing",
       "scale" : "1x",
       "size" : "1024x1024"
