@@ -20,11 +20,23 @@ struct MetalView: UIViewRepresentable {
     @Binding var sensorAngle: Float
     @Binding var sensorDistance: Float
     @Binding var turnAngle: Float
+    
+    @Binding var falloff: Float
+    @Binding var cutoff: Float
+    @Binding var count: Int
 
     typealias UIViewType = MTKView
     
-    init(fps: Binding<Double>, background: Binding<Color>, drawParticles: Binding<Bool> , drawPath: Binding<Bool>,
-         sensorAngle: Binding<Float>, sensorDistance: Binding<Float>, turnAngle: Binding<Float>) {
+    init(fps: Binding<Double>,
+         background: Binding<Color>,
+         drawParticles: Binding<Bool>,
+         drawPath: Binding<Bool>,
+         sensorAngle: Binding<Float>,
+         sensorDistance: Binding<Float>,
+         turnAngle: Binding<Float>,
+         count: Binding<Int>,
+         falloff: Binding<Float>,
+         cutoff: Binding<Float>) {
         self._fps = fps
         self._background = background
         self._drawParticles = drawParticles
@@ -33,6 +45,10 @@ struct MetalView: UIViewRepresentable {
         self._sensorAngle = sensorAngle
         self._sensorDistance = sensorDistance
         self._turnAngle = turnAngle
+        
+        self._count = count
+        self._falloff = falloff
+        self._cutoff = cutoff
     }
 
     func makeUIView(context: Context) -> MTKView {
@@ -59,12 +75,14 @@ struct MetalView: UIViewRepresentable {
         context.coordinator.colours.background = background.float4()
         context.coordinator.drawParticles = drawParticles
         context.coordinator.drawPath = drawPath
-        
+        context.coordinator.particleCount = count
         context.coordinator.config = ParticleConfig(sensorAngle: sensorAngle,
                                                     sensorDistance: sensorDistance,
                                                     turnAngle: turnAngle,
                                                     drawRadius: 5,
-                                                    trailRadius: 5)
+                                                    trailRadius: 5,
+                                                    cutoff: cutoff,
+                                                    falloff: falloff)
     }
     
     func makeCoordinator() -> Coordinator {
@@ -83,7 +101,7 @@ struct MetalView: UIViewRepresentable {
         
         var particleBuffer: MTLBuffer!
         
-        var particleCount = 128
+        var particleCount = 0
         
         var maxSpeed: Float = 5
         var margin: Float = 50
@@ -92,12 +110,7 @@ struct MetalView: UIViewRepresentable {
         var drawParticles = false
         var drawPath = false
         
-        fileprivate var config = ParticleConfig(sensorAngle: Float.pi / 8,
-                                    sensorDistance: 10,
-                                    turnAngle: Float.pi / 16,
-                                    drawRadius: 5,
-                                    trailRadius: 5)
-        
+        fileprivate var config = ParticleConfig()
         
         // skip all rendering, in the case the hardware doesn't support what we're doing (like in previews)
         var skipDraw = false
@@ -353,7 +366,10 @@ struct MetalView_Previews: PreviewProvider {
                   drawPath: .constant(true),
                   sensorAngle: .constant(0.5),
                   sensorDistance: .constant(0.5),
-                  turnAngle: .constant(0.5))
+                  turnAngle: .constant(0.5),
+                  count: .constant(0),
+                  falloff: .constant(0),
+                  cutoff: .constant(0))
     }
 }
 
@@ -381,9 +397,11 @@ private struct Particle {
 }
 
 private struct ParticleConfig {
-    var sensorAngle: Float
-    var sensorDistance: Float
-    var turnAngle: Float
-    var drawRadius: Int
-    var trailRadius: Int
+    var sensorAngle: Float = 0
+    var sensorDistance: Float = 0
+    var turnAngle: Float = 0
+    var drawRadius: Int = 0
+    var trailRadius: Int = 0
+    var cutoff: Float = 0
+    var falloff: Float = 0
 }

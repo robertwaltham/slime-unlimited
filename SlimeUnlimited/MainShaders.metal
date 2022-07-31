@@ -29,6 +29,8 @@ struct ParticleConfig {
     float turn_angle;
     int draw_radius;
     int trail_radius;
+    float cutoff;
+    float falloff;
 };
 
 float2 rotate_vector(float2 vector, float angle) {
@@ -203,6 +205,7 @@ kernel void fourthPass(texture2d<half, access::write> output [[texture(InputText
 
 kernel void boxBlur(texture2d<half, access::write> output [[texture(InputTextureIndexPathOutput)]],
                        texture2d<half, access::read_write> input [[texture(InputTextureIndexPathInput)]],
+                       const device ParticleConfig& config [[ buffer(InputIndexConfig)]],
                        uint2 gid [[ thread_position_in_grid ]]) {
     
     const int blurSize = 5;
@@ -218,7 +221,7 @@ kernel void boxBlur(texture2d<half, access::write> output [[texture(InputTexture
 
     half4 finalColor = colors/float(blurSize*blurSize);
     
-    float cutoff = 0.01;
+    float cutoff = config.cutoff;
     if (finalColor[0] < cutoff) {
         finalColor[0] = 0;
     }
@@ -229,7 +232,7 @@ kernel void boxBlur(texture2d<half, access::write> output [[texture(InputTexture
         finalColor[2] = 0;
     }
     
-    float decay = 0.999;
+    float decay = 1 - config.falloff / 1000;
     finalColor[0] *= decay;
     finalColor[1] *= decay;
     finalColor[2] *= decay;

@@ -11,7 +11,7 @@ import SwiftUI
 struct SlimeUnlimitedApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(started: false)
         }
     }
 }
