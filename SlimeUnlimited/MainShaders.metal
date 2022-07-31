@@ -38,11 +38,6 @@ float2 rotate_vector(float2 vector, float angle) {
     return rotation * vector;
 }
 
-float random(float2 p) {
-    return fract(sin(dot(p, float2(15.79, 81.93)) * 45678.9123));
-}
-
-
 kernel void firstPass(texture2d<half, access::write> output [[texture(InputTextureIndexDrawable)]],
                       const device RenderColours& colours [[buffer(InputIndexColours)]],
                       uint2 id [[thread_position_in_grid]]) {
@@ -52,6 +47,7 @@ kernel void firstPass(texture2d<half, access::write> output [[texture(InputTextu
 kernel void secondPass(texture2d<half, access::read_write> output [[texture(InputTextureIndexPathInput)]],
                        const device RenderColours& colours [[buffer(InputIndexColours)]],
                        device Particle *particles [[buffer(InputIndexParticles)]],
+                       const device float *random [[buffer(InputIndexRandom)]],
                        const device int& particle_count [[ buffer(InputIndexParticleCount)]],
                        const device ParticleConfig& config [[ buffer(InputIndexConfig)]],
                        uint id [[ thread_position_in_grid ]],
@@ -64,7 +60,7 @@ kernel void secondPass(texture2d<half, access::read_write> output [[texture(Inpu
     
     float2 position = particle.position;
     float2 velocity = particle.velocity;
-    float2 acceleration = float2(0,0);
+    float2 acceleration = particle.acceleration;
     
     uint width = output.get_width();
     uint height = output.get_height();
@@ -99,15 +95,16 @@ kernel void secondPass(texture2d<half, access::read_write> output [[texture(Inpu
     half4 right_colour = output.read(right_coord);
     
     int channel = 0;
-    if (left_colour[channel] > center_colour[channel] && left_colour[channel] > right_colour[channel]) {
+    float tolerance = 0.1;
+    if (left_colour[channel] - center_colour[channel] > tolerance && left_colour[channel] - right_colour[channel] > tolerance) {
         velocity = rotate_vector(velocity, turn_angle);
-    } else if (right_colour[channel] > center_colour[channel] && right_colour[channel] > left_colour[channel]) {
+    } else if (right_colour[channel] - center_colour[channel] > tolerance && right_colour[channel] - left_colour[channel] > tolerance) {
         velocity = rotate_vector(velocity, -turn_angle);
-    } else if (right_colour[channel] - left_colour[channel] < 0.1) {
-        if (random(position) < 0.5) {
-            velocity = rotate_vector(velocity, turn_angle);
-        } else {
+    } else if (abs(right_colour[channel] - left_colour[channel]) < tolerance) {
+        if (random[index % 1024] < 0.5) {
             velocity = rotate_vector(velocity, -turn_angle);
+        } else {
+            velocity = rotate_vector(velocity, turn_angle);
         }
     }
 
@@ -132,7 +129,9 @@ kernel void secondPass(texture2d<half, access::read_write> output [[texture(Inpu
             }
             
             if (length(float2(u, v) - particle.position) < span) {
-                output.write(color, uint2(u, v));
+                half4 current_color = output.read(uint2(u,v));
+                half4 output_color = clamp(current_color += color, half4(0), half4(1));
+                output.write(output_color, uint2(u, v));
             }
         }
     }

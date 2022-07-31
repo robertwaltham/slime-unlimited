@@ -83,7 +83,7 @@ struct MetalView: UIViewRepresentable {
         context.coordinator.config = ParticleConfig(sensorAngle: sensorAngle,
                                                     sensorDistance: sensorDistance,
                                                     turnAngle: turnAngle,
-                                                    drawRadius: 3,
+                                                    drawRadius: 2,
                                                     trailRadius: trailRadius,
                                                     cutoff: cutoff,
                                                     falloff: falloff)
@@ -201,10 +201,13 @@ extension MetalView.Coordinator {
     func draw() {
         
         initializeParticlesIfNeeded()
+        
         if pathTextures.count == 0 {
             pathTextures.append(makeTexture(device: metalDevice, drawableSize: viewPortSize))
             pathTextures.append(makeTexture(device: metalDevice, drawableSize: viewPortSize))
         }
+        let randomCount = 1024
+        var random: [Float] = (0..<randomCount).map { _ in Float.random(in: 0...1) }
 
         let threadgroupSizeMultiplier = 1
         let maxThreads = 512
@@ -223,6 +226,7 @@ extension MetalView.Coordinator {
             commandEncoder.setTexture(pathTextures[0], index: Int(InputTextureIndexPathInput.rawValue))
             commandEncoder.setTexture(pathTextures[1], index: Int(InputTextureIndexPathOutput.rawValue))
             commandEncoder.setBytes(&config, length: MemoryLayout<ParticleConfig>.stride, index: Int(InputIndexConfig.rawValue))
+            commandEncoder.setBytes(&random, length: MemoryLayout<Float>.stride * randomCount, index: Int(InputIndexRandom.rawValue))
 
             if let particleBuffer = particleBuffer {
                 
@@ -264,7 +268,6 @@ extension MetalView.Coordinator {
             }
             commandBuffer.addCompletedHandler { buffer in
                 self.pathTextures.reverse()
-//                self.extractParticles()
             }
             commandBuffer.commit()
         }
@@ -360,7 +363,7 @@ extension MetalView.Coordinator {
 
 struct RenderColours {
     var background = SIMD4<Float>(0,0,0,0)
-    var trail = SIMD4<Float>(1,1,1,1)
+    var trail = SIMD4<Float>(0.25,0.25,0.25,1)
     var particle = SIMD4<Float>(0.5,0.5,0.5,1)
 }
 

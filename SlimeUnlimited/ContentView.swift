@@ -26,7 +26,7 @@ struct ContentView: View {
     
     @State var started: Bool
     
-    var particleCounts = [1024, 2048, 8192, 16384, 32768, 65536, 131072, 262144, 524288]
+    var particleCounts = [1024, 2048, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576]
     @State var count = 8192
 
     var body: some View {
@@ -102,6 +102,8 @@ struct ContentView: View {
                         }
                         
                         Text("FPS: \(fps, specifier: "%.0f")")
+                            .frame(width: 60, height: 26.5, alignment: .center)
+                            .padding(3)
                     }
           
                 }.padding(10)
