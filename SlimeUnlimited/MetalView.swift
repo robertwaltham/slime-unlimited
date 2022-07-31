@@ -68,9 +68,9 @@ struct MetalView: UIViewRepresentable {
         
         var particleBuffer: MTLBuffer!
         
-        var particleCount = 50
+        var particleCount = 128
         
-        var maxSpeed: Float = 10
+        var maxSpeed: Float = 5
         var margin: Float = 50
         var radius: Float = 50
         
@@ -320,7 +320,7 @@ extension MetalView.Coordinator {
 
 struct RenderColours {
     var background = SIMD4<Float>(0,0,0,0)
-    var trail = SIMD4<Float>(1,1,1,1)
+    var trail = SIMD4<Float>(0.5,0.5,0.5,1)
     var particle = SIMD4<Float>(0.5,0.5,0.5,1)
 }
 
