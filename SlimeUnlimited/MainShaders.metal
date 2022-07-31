@@ -12,7 +12,7 @@ using namespace metal;
 
 struct RenderColours {
     float4 background;
-    float4 foreground;
+    float4 trail;
     float4 particle;
 };
 
@@ -29,7 +29,7 @@ kernel void firstPass(texture2d<half, access::write> output [[texture(InputTextu
     output.write((half4)colours.background, id);
 }
 
-kernel void secondPass(texture2d<half, access::read_write> output [[texture(InputTextureIndexPath)]],
+kernel void secondPass(texture2d<half, access::read_write> output [[texture(InputTextureIndexPathInput)]],
                        const device RenderColours& colours [[buffer(InputIndexColours)]],
                        device Particle *particles [[buffer(InputIndexParticles)]],
                        const device int& particle_count [[ buffer(InputIndexParticleCount)]],
@@ -72,8 +72,8 @@ kernel void secondPass(texture2d<half, access::read_write> output [[texture(Inpu
     uint2 pos = uint2(particle.position);
     
     // display
-    half4 color = (half4)colours.particle;
-    uint span = 1;
+    half4 color = (half4)colours.trail;
+    uint span = 7;
     
     for (uint u = pos.x - span; u <= uint(pos.x) + span; u++) {
         for (uint v = pos.y - span; v <= uint(pos.y) + span; v++) {
@@ -127,8 +127,48 @@ kernel void thirdPass(texture2d<half, access::write> output [[texture(InputTextu
 }
 
 kernel void fourthPass(texture2d<half, access::write> output [[texture(InputTextureIndexDrawable)]],
-                       texture2d<half, access::read_write> input [[texture(InputTextureIndexPath)]],
+                       texture2d<half, access::read_write> input [[texture(InputTextureIndexPathOutput)]],
                        uint2 gid [[ thread_position_in_grid ]]) {
     half4 color = input.read(gid);
     output.write(color, gid);
 }
+
+kernel void boxBlur(texture2d<half, access::write> output [[texture(InputTextureIndexPathOutput)]],
+                       texture2d<half, access::read_write> input [[texture(InputTextureIndexPathInput)]],
+                       uint2 gid [[ thread_position_in_grid ]]) {
+    
+    const int blurSize = 5;
+    int range = floor(blurSize/2.0);
+
+    half4 colors = half4(0);
+    for (int x = -range; x <= range; x++) {
+        for (int y = -range; y <= range; y++) {
+            half4 color = input.read(uint2(gid.x+x, gid.y+y));
+            colors += color;
+        }
+    }
+
+    half4 finalColor = colors/float(blurSize*blurSize);
+    
+    float cutoff = 0.01;
+    if (finalColor[0] < cutoff) {
+        finalColor[0] = 0;
+    }
+    if (finalColor[1] < cutoff) {
+        finalColor[1] = 0;
+    }
+    if (finalColor[2] < cutoff) {
+        finalColor[2] = 0;
+    }
+    
+    float decay = 0.999;
+    finalColor[0] *= decay;
+    finalColor[1] *= decay;
+    finalColor[2] *= decay;
+
+    output.write(finalColor, gid);
+    
+//    half4 color = input.read(gid);
+//    output.write(color, gid);
+}
+

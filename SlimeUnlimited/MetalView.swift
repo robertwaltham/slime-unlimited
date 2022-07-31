@@ -62,7 +62,7 @@ struct MetalView: UIViewRepresentable {
         var metalDevice: MTLDevice!
         var metalCommandQueue: MTLCommandQueue!
         
-        var pathTexture: MTLTexture!
+        var pathTextures: [MTLTexture] = []
         
         var states: [MTLComputePipelineState] = []
         
@@ -165,8 +165,9 @@ extension MetalView.Coordinator {
     func draw() {
         
         initializeParticlesIfNeeded()
-        if pathTexture == nil {
-            pathTexture = makeTexture(device: metalDevice, drawableSize: viewPortSize)
+        if pathTextures.count == 0 {
+            pathTextures.append(makeTexture(device: metalDevice, drawableSize: viewPortSize))
+            pathTextures.append(makeTexture(device: metalDevice, drawableSize: viewPortSize))
         }
 
         let threadgroupSizeMultiplier = 1
@@ -183,16 +184,21 @@ extension MetalView.Coordinator {
         if let commandBuffer = metalCommandQueue.makeCommandBuffer(),
            let commandEncoder = commandBuffer.makeComputeCommandEncoder() {
             
+            commandEncoder.setTexture(pathTextures[0], index: Int(InputTextureIndexPathInput.rawValue))
+            commandEncoder.setTexture(pathTextures[1], index: Int(InputTextureIndexPathOutput.rawValue))
             
             if let particleBuffer = particleBuffer {
                 
+                // update particles and draw on path
                 commandEncoder.setComputePipelineState(states[1])
-                commandEncoder.setTexture(pathTexture, index: Int(InputTextureIndexPath.rawValue))
                 commandEncoder.setBuffer(particleBuffer, offset: 0, index: Int(InputIndexParticles.rawValue))
                 commandEncoder.setBytes(&particleCount, length: MemoryLayout<Int>.stride, index: Int(InputIndexParticleCount.rawValue))
                 commandEncoder.setBytes(&colours, length: MemoryLayout<RenderColours>.stride, index: Int(InputIndexColours.rawValue))
-
                 commandEncoder.dispatchThreadgroups(particleThreadGroupsPerGrid, threadsPerThreadgroup: particleThreadsPerGroup)
+                
+                // blur path and copy to second path buffer
+                commandEncoder.setComputePipelineState(states[4])
+                commandEncoder.dispatchThreadgroups(textureThreadgroupsPerGrid, threadsPerThreadgroup: textureThreadsPerGroup)
             }
             
             if let drawable = view?.currentDrawable {
@@ -201,16 +207,11 @@ extension MetalView.Coordinator {
                 commandEncoder.setComputePipelineState(states[0])
                 commandEncoder.setTexture(drawable.texture, index: Int(InputTextureIndexDrawable.rawValue))
                 commandEncoder.dispatchThreadgroups(textureThreadgroupsPerGrid, threadsPerThreadgroup: textureThreadsPerGroup)
-                
-                
-                // draw path
-                
+                                
                 if drawPath {
                     commandEncoder.setComputePipelineState(states[3])
                     commandEncoder.dispatchThreadgroups(textureThreadgroupsPerGrid, threadsPerThreadgroup: textureThreadsPerGroup)
                 }
-
-                // draw particles
                 
                 if drawParticles, let particleBuffer = particleBuffer {
                     commandEncoder.setComputePipelineState(states[2])
@@ -219,15 +220,17 @@ extension MetalView.Coordinator {
                     commandEncoder.dispatchThreadgroups(particleThreadGroupsPerGrid, threadsPerThreadgroup: particleThreadsPerGroup)
                 }
                 
-                
                 commandEncoder.endEncoding()
                 commandBuffer.present(drawable)
                 
             } else {
                 fatalError("no drawable")
             }
+            commandBuffer.addCompletedHandler { buffer in
+                self.pathTextures.reverse()
+//                self.extractParticles()
+            }
             commandBuffer.commit()
-            extractParticles()
         }
     }
     
@@ -257,7 +260,7 @@ extension MetalView.Coordinator {
             fatalError("can't create libray")
         }
         
-        states = try ["firstPass", "secondPass", "thirdPass", "fourthPass"].map {
+        states = try ["firstPass", "secondPass", "thirdPass", "fourthPass", "boxBlur"].map {
             guard let function = library.makeFunction(name: $0) else {
                 fatalError("Can't make function \($0)")
             }
@@ -317,8 +320,8 @@ extension MetalView.Coordinator {
 
 struct RenderColours {
     var background = SIMD4<Float>(0,0,0,0)
-    var foreground = SIMD4<Float>(0,0,0,0)
-    var particle = SIMD4<Float>(0.5,0.5,1,1)
+    var trail = SIMD4<Float>(1,1,1,1)
+    var particle = SIMD4<Float>(0.5,0.5,0.5,1)
 }
 
 
