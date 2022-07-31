@@ -24,6 +24,7 @@ struct MetalView: UIViewRepresentable {
     @Binding var falloff: Float
     @Binding var cutoff: Float
     @Binding var count: Int
+    @Binding var trailRadius: Float
 
     typealias UIViewType = MTKView
     
@@ -36,7 +37,8 @@ struct MetalView: UIViewRepresentable {
          turnAngle: Binding<Float>,
          count: Binding<Int>,
          falloff: Binding<Float>,
-         cutoff: Binding<Float>) {
+         cutoff: Binding<Float>,
+         trailRadius: Binding<Float>) {
         self._fps = fps
         self._background = background
         self._drawParticles = drawParticles
@@ -49,6 +51,8 @@ struct MetalView: UIViewRepresentable {
         self._count = count
         self._falloff = falloff
         self._cutoff = cutoff
+        
+        self._trailRadius = trailRadius
     }
 
     func makeUIView(context: Context) -> MTKView {
@@ -64,7 +68,7 @@ struct MetalView: UIViewRepresentable {
         mtkView.drawableSize = mtkView.frame.size
         mtkView.enableSetNeedsDisplay = true
         mtkView.isPaused = false
-        mtkView.preferredFramesPerSecond = 30
+        mtkView.preferredFramesPerSecond = 60
         mtkView.isMultipleTouchEnabled = true
         context.coordinator.view = mtkView
 
@@ -79,8 +83,8 @@ struct MetalView: UIViewRepresentable {
         context.coordinator.config = ParticleConfig(sensorAngle: sensorAngle,
                                                     sensorDistance: sensorDistance,
                                                     turnAngle: turnAngle,
-                                                    drawRadius: 5,
-                                                    trailRadius: 5,
+                                                    drawRadius: 3,
+                                                    trailRadius: trailRadius,
                                                     cutoff: cutoff,
                                                     falloff: falloff)
     }
@@ -103,7 +107,8 @@ struct MetalView: UIViewRepresentable {
         
         var particleCount = 0
         
-        var maxSpeed: Float = 5
+        var maxSpeed: Float = 2.5
+        var minSpeed: Float = 2
         var margin: Float = 50
         var radius: Float = 50
         
@@ -152,8 +157,6 @@ struct MetalView: UIViewRepresentable {
             if let metalDevice = MTLCreateSystemDefaultDevice() {
                 self.metalDevice = metalDevice
             }
-            
- 
             
             self._fps = parent._fps
             super.init()
@@ -274,7 +277,6 @@ extension MetalView.Coordinator {
             fatalError("can't make queue")
         }
         metalCommandQueue = queue
-
         
         // pipeline state
         do {
@@ -282,7 +284,6 @@ extension MetalView.Coordinator {
         } catch {
             fatalError("Unable to compile render pipeline state.  Error info: \(error)")
         }
-
     }
 
     
@@ -303,16 +304,22 @@ extension MetalView.Coordinator {
     
     
     private func initializeParticlesIfNeeded() {
+        
         guard particleBuffer == nil else {
             return
         }
         
-        let speedRange = -maxSpeed...maxSpeed
+        let speedRange = minSpeed...maxSpeed
         let xRange = margin...(Float(viewPortSize.x) - margin)
         let yRange = margin...(Float(viewPortSize.y) - margin)
 
         for _ in 0 ..< particleCount {
-            let speed = SIMD2<Float>(Float.random(in: speedRange), Float.random(in: speedRange))
+            var speed = SIMD2<Float>(Float.random(in: speedRange), 0)
+            let angle = Float.random(in: 0...Float.pi * 2)
+            
+            let rotation = simd_float2x2(SIMD2<Float>(cos(angle), -sin(angle)), SIMD2<Float>(sin(angle), cos(angle)))
+            speed = rotation * speed
+            
             let position = SIMD2<Float>(Float.random(in: xRange), Float.random(in: yRange))
             let particle = Particle(position: position, velocity: speed)
             particles.append(particle)
@@ -353,7 +360,7 @@ extension MetalView.Coordinator {
 
 struct RenderColours {
     var background = SIMD4<Float>(0,0,0,0)
-    var trail = SIMD4<Float>(0.5,0.5,0.5,1)
+    var trail = SIMD4<Float>(1,1,1,1)
     var particle = SIMD4<Float>(0.5,0.5,0.5,1)
 }
 
@@ -369,7 +376,8 @@ struct MetalView_Previews: PreviewProvider {
                   turnAngle: .constant(0.5),
                   count: .constant(0),
                   falloff: .constant(0),
-                  cutoff: .constant(0))
+                  cutoff: .constant(0),
+                  trailRadius: .constant(0))
     }
 }
 
@@ -400,8 +408,8 @@ private struct ParticleConfig {
     var sensorAngle: Float = 0
     var sensorDistance: Float = 0
     var turnAngle: Float = 0
-    var drawRadius: Int = 0
-    var trailRadius: Int = 0
+    var drawRadius: Float = 0
+    var trailRadius: Float = 0
     var cutoff: Float = 0
     var falloff: Float = 0
 }

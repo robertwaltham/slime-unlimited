@@ -27,8 +27,8 @@ struct ParticleConfig {
     float sensor_angle;
     float sensor_distance;
     float turn_angle;
-    int draw_radius;
-    int trail_radius;
+    float draw_radius;
+    float trail_radius;
     float cutoff;
     float falloff;
 };
@@ -123,7 +123,7 @@ kernel void secondPass(texture2d<half, access::read_write> output [[texture(Inpu
     
     uint2 pos = uint2(particle.position);
     half4 color = (half4)colours.trail;
-    uint span = (uint)config.draw_radius;
+    uint span = (uint)config.trail_radius;
     
     for (uint u = pos.x - span; u <= uint(pos.x) + span; u++) {
         for (uint v = pos.y - span; v <= uint(pos.y) + span; v++) {
@@ -155,7 +155,7 @@ kernel void thirdPass(texture2d<half, access::write> output [[texture(InputTextu
 
     Particle particle = particles[index];
     uint2 pos = uint2(particle.position);
-    int span = config.draw_radius;
+    uint span = (uint)config.draw_radius;
     
     // display
     half4 color = (half4)colours.particle;
@@ -232,7 +232,7 @@ kernel void boxBlur(texture2d<half, access::write> output [[texture(InputTexture
         finalColor[2] = 0;
     }
     
-    float decay = 1 - config.falloff / 1000;
+    float decay = 1 - config.falloff;
     finalColor[0] *= decay;
     finalColor[1] *= decay;
     finalColor[2] *= decay;
