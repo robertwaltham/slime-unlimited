@@ -23,6 +23,14 @@ struct Particle {
     float2 force;
 };
 
+struct ParticleConfig {
+    float sensor_angle;
+    float sensor_distance;
+    float turn_angle;
+    int draw_radius;
+    int trail_radius;
+};
+
 float2 rotate_vector(float2 vector, float angle) {
     float2x2 rotation = float2x2(cos(angle), -sin(angle), sin(angle), cos(angle));
     return rotation * vector;
@@ -31,6 +39,7 @@ float2 rotate_vector(float2 vector, float angle) {
 float random(float2 p) {
     return fract(sin(dot(p, float2(15.79, 81.93)) * 45678.9123));
 }
+
 
 kernel void firstPass(texture2d<half, access::write> output [[texture(InputTextureIndexDrawable)]],
                       const device RenderColours& colours [[buffer(InputIndexColours)]],
@@ -42,6 +51,7 @@ kernel void secondPass(texture2d<half, access::read_write> output [[texture(Inpu
                        const device RenderColours& colours [[buffer(InputIndexColours)]],
                        device Particle *particles [[buffer(InputIndexParticles)]],
                        const device int& particle_count [[ buffer(InputIndexParticleCount)]],
+                       const device ParticleConfig& config [[ buffer(InputIndexConfig)]],
                        uint id [[ thread_position_in_grid ]],
                        uint tid [[ thread_index_in_threadgroup ]],
                        uint bid [[ threadgroup_position_in_grid ]],
@@ -70,9 +80,9 @@ kernel void secondPass(texture2d<half, access::read_write> output [[texture(Inpu
     
     // velocity
     
-    float sensor_angle = M_PI_F / 8;
-    float turn_angle = M_PI_F / 16;
-    float sensor_distance = 12;
+    float sensor_angle = config.sensor_angle;
+    float turn_angle = config.turn_angle;
+    float sensor_distance = config.sensor_distance;
     
     float2 center_direction = normalize(-velocity) * sensor_distance;
     float2 left_direction = rotate_vector(center_direction, sensor_angle);
@@ -86,11 +96,12 @@ kernel void secondPass(texture2d<half, access::read_write> output [[texture(Inpu
     half4 left_colour = output.read(left_coord);
     half4 right_colour = output.read(right_coord);
     
-    if (left_colour[0] > center_colour[0] && left_colour[0] > right_colour[0]) {
+    int channel = 0;
+    if (left_colour[channel] > center_colour[channel] && left_colour[channel] > right_colour[channel]) {
         velocity = rotate_vector(velocity, turn_angle);
-    } else if (right_colour[0] > center_colour[0] && right_colour[0] > left_colour[0]) {
+    } else if (right_colour[channel] > center_colour[channel] && right_colour[channel] > left_colour[channel]) {
         velocity = rotate_vector(velocity, turn_angle);
-    } else if (right_colour[0] - left_colour[0] < 0.1) {
+    } else if (right_colour[channel] - left_colour[channel] < 0.1) {
         if (random(position) < 0.5) {
             velocity = rotate_vector(velocity, turn_angle);
         } else {
@@ -110,7 +121,7 @@ kernel void secondPass(texture2d<half, access::read_write> output [[texture(Inpu
     
     uint2 pos = uint2(particle.position);
     half4 color = (half4)colours.trail;
-    uint span = 3;
+    uint span = (uint)config.draw_radius;
     
     for (uint u = pos.x - span; u <= uint(pos.x) + span; u++) {
         for (uint v = pos.y - span; v <= uint(pos.y) + span; v++) {
@@ -128,7 +139,7 @@ kernel void secondPass(texture2d<half, access::read_write> output [[texture(Inpu
 
 kernel void thirdPass(texture2d<half, access::write> output [[texture(InputTextureIndexDrawable)]],
                       device Particle *particles [[buffer(InputIndexParticles)]],
-                      const device int& span [[ buffer(InputIndexDrawSpan)]],
+                      const device ParticleConfig& config [[ buffer(InputIndexConfig)]],
                       const device RenderColours& colours [[buffer(InputIndexColours)]],
                       uint id [[ thread_position_in_grid ]],
                       uint tid [[ thread_index_in_threadgroup ]],
@@ -142,6 +153,7 @@ kernel void thirdPass(texture2d<half, access::write> output [[texture(InputTextu
 
     Particle particle = particles[index];
     uint2 pos = uint2(particle.position);
+    int span = config.draw_radius;
     
     // display
     half4 color = (half4)colours.particle;
@@ -165,8 +177,9 @@ kernel void thirdPass(texture2d<half, access::write> output [[texture(InputTextu
     float2 position = particle.position;
     float2 velocity = particle.velocity;
     half4 sensor_color = half4(1, 0, 0, 1);
-    float sensor_angle = M_PI_F / 8;
-    float sensor_distance = 12;
+    float sensor_angle = config.sensor_angle;
+    float sensor_distance = config.sensor_distance;
+    
     float2 center_direction = normalize(-velocity) * sensor_distance;
     float2 left_direction = rotate_vector(center_direction, sensor_angle);
     float2 right_direction = rotate_vector(center_direction, -sensor_angle);
@@ -222,8 +235,5 @@ kernel void boxBlur(texture2d<half, access::write> output [[texture(InputTexture
     finalColor[2] *= decay;
 
     output.write(finalColor, gid);
-    
-//    half4 color = input.read(gid);
-//    output.write(color, gid);
 }
 

@@ -16,14 +16,23 @@ struct MetalView: UIViewRepresentable {
     @Binding var background: Color
     @Binding var drawParticles: Bool
     @Binding var drawPath: Bool
+    
+    @Binding var sensorAngle: Float
+    @Binding var sensorDistance: Float
+    @Binding var turnAngle: Float
 
     typealias UIViewType = MTKView
     
-    init(fps: Binding<Double>, background: Binding<Color>, drawParticles: Binding<Bool> , drawPath: Binding<Bool>) {
+    init(fps: Binding<Double>, background: Binding<Color>, drawParticles: Binding<Bool> , drawPath: Binding<Bool>,
+         sensorAngle: Binding<Float>, sensorDistance: Binding<Float>, turnAngle: Binding<Float>) {
         self._fps = fps
         self._background = background
         self._drawParticles = drawParticles
         self._drawPath = drawPath
+        
+        self._sensorAngle = sensorAngle
+        self._sensorDistance = sensorDistance
+        self._turnAngle = turnAngle
     }
 
     func makeUIView(context: Context) -> MTKView {
@@ -50,6 +59,12 @@ struct MetalView: UIViewRepresentable {
         context.coordinator.colours.background = background.float4()
         context.coordinator.drawParticles = drawParticles
         context.coordinator.drawPath = drawPath
+        
+        context.coordinator.config = ParticleConfig(sensorAngle: sensorAngle,
+                                                    sensorDistance: sensorDistance,
+                                                    turnAngle: turnAngle,
+                                                    drawRadius: 5,
+                                                    trailRadius: 5)
     }
     
     func makeCoordinator() -> Coordinator {
@@ -74,9 +89,14 @@ struct MetalView: UIViewRepresentable {
         var margin: Float = 50
         var radius: Float = 50
         
-        var drawRadius: Int = 4
         var drawParticles = false
         var drawPath = false
+        
+        fileprivate var config = ParticleConfig(sensorAngle: Float.pi / 8,
+                                    sensorDistance: 10,
+                                    turnAngle: Float.pi / 16,
+                                    drawRadius: 5,
+                                    trailRadius: 5)
         
         
         // skip all rendering, in the case the hardware doesn't support what we're doing (like in previews)
@@ -186,7 +206,8 @@ extension MetalView.Coordinator {
             
             commandEncoder.setTexture(pathTextures[0], index: Int(InputTextureIndexPathInput.rawValue))
             commandEncoder.setTexture(pathTextures[1], index: Int(InputTextureIndexPathOutput.rawValue))
-            
+            commandEncoder.setBytes(&config, length: MemoryLayout<ParticleConfig>.stride, index: Int(InputIndexConfig.rawValue))
+
             if let particleBuffer = particleBuffer {
                 
                 // update particles and draw on path
@@ -216,7 +237,6 @@ extension MetalView.Coordinator {
                 if drawParticles, let particleBuffer = particleBuffer {
                     commandEncoder.setComputePipelineState(states[2])
                     commandEncoder.setBuffer(particleBuffer, offset: 0, index: Int(InputIndexParticleCount.rawValue))
-                    commandEncoder.setBytes(&drawRadius, length: MemoryLayout<Int>.stride, index: Int(InputIndexDrawSpan.rawValue))
                     commandEncoder.dispatchThreadgroups(particleThreadGroupsPerGrid, threadsPerThreadgroup: particleThreadsPerGroup)
                 }
                 
@@ -327,7 +347,13 @@ struct RenderColours {
 
 struct MetalView_Previews: PreviewProvider {
     static var previews: some View {
-        MetalView(fps: .constant(60), background: .constant(Color.gray), drawParticles: .constant(false), drawPath: .constant(true))
+        MetalView(fps: .constant(60),
+                  background: .constant(Color.gray),
+                  drawParticles: .constant(false),
+                  drawPath: .constant(true),
+                  sensorAngle: .constant(0.5),
+                  sensorDistance: .constant(0.5),
+                  turnAngle: .constant(0.5))
     }
 }
 
@@ -352,4 +378,12 @@ private struct Particle {
     var description: String {
         return "p<\(position.x),\(position.y)> v<\(velocity.x),\(velocity.y)> a<\(acceleration.x),\(acceleration.y) f<\(force.x),\(force.y)>"
     }
+}
+
+private struct ParticleConfig {
+    var sensorAngle: Float
+    var sensorDistance: Float
+    var turnAngle: Float
+    var drawRadius: Int
+    var trailRadius: Int
 }

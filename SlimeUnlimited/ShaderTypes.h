@@ -22,7 +22,7 @@ typedef enum InputIndex {
     InputIndexColours = 0,
     InputIndexParticles = 1,
     InputIndexParticleCount = 2,
-    InputIndexDrawSpan = 3
+    InputIndexConfig = 3
 } InputIndex;
 
 typedef enum InputTextureIndex {
