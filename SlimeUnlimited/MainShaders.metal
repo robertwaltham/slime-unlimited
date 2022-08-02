@@ -20,7 +20,8 @@ struct Particle {
     float2 position;
     float2 velocity;
     float2 acceleration;
-    float2 force;
+    float species;
+    float bytes;
 };
 
 struct ParticleConfig {
@@ -31,6 +32,7 @@ struct ParticleConfig {
     float trail_radius;
     float cutoff;
     float falloff;
+    float speed_multiplier;
 };
 
 float2 rotate_vector(float2 vector, float angle) {
@@ -61,13 +63,15 @@ kernel void secondPass(texture2d<half, access::read_write> output [[texture(Inpu
     float2 position = particle.position;
     float2 velocity = particle.velocity;
     float2 acceleration = particle.acceleration;
+    int species = (int)clamp(particle.species, 0.0, 3.0);
     
     uint width = output.get_width();
     uint height = output.get_height();
     
     // position
-    position += velocity;
+    position += (velocity * config.speed_multiplier);
     
+    // bounds
     if (position.x < 0 || position.x > width) {
         velocity.x *= -1;
     }
@@ -94,7 +98,7 @@ kernel void secondPass(texture2d<half, access::read_write> output [[texture(Inpu
     half4 left_colour = output.read(left_coord);
     half4 right_colour = output.read(right_coord);
     
-    int channel = 0;
+    int channel = species;
     float tolerance = 0.1;
     if (left_colour[channel] - center_colour[channel] > tolerance && left_colour[channel] - right_colour[channel] > tolerance) {
         velocity = rotate_vector(velocity, turn_angle);
@@ -119,7 +123,11 @@ kernel void secondPass(texture2d<half, access::read_write> output [[texture(Inpu
     // leave trail
     
     uint2 pos = uint2(particle.position);
-    half4 color = (half4)colours.trail;
+    half4 trail_colour = half4(0,0,0,1);
+    trail_colour[species] = 0.25;
+    
+    half4 deletion_colour = half4(0.1, 0.1, 0.1, 1);
+    deletion_colour[species] = 0;
     uint span = (uint)config.trail_radius;
     
     for (uint u = pos.x - span; u <= uint(pos.x) + span; u++) {
@@ -130,8 +138,9 @@ kernel void secondPass(texture2d<half, access::read_write> output [[texture(Inpu
             
             if (length(float2(u, v) - particle.position) < span) {
                 half4 current_color = output.read(uint2(u,v));
-                half4 output_color = clamp(current_color += color, half4(0), half4(1));
-                output.write(output_color, uint2(u, v));
+                half4 output_color = current_color += trail_colour;
+                output_color = current_color -= deletion_colour;
+                output.write(clamp(output_color, half4(0), half4(1)), uint2(u, v));
             }
         }
     }

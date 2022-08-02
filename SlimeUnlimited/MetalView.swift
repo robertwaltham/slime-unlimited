@@ -25,6 +25,7 @@ struct MetalView: UIViewRepresentable {
     @Binding var cutoff: Float
     @Binding var count: Int
     @Binding var trailRadius: Float
+    @Binding var speedMultiplier: Float
 
     typealias UIViewType = MTKView
     
@@ -38,7 +39,9 @@ struct MetalView: UIViewRepresentable {
          count: Binding<Int>,
          falloff: Binding<Float>,
          cutoff: Binding<Float>,
-         trailRadius: Binding<Float>) {
+         trailRadius: Binding<Float>,
+         speedMultiplier: Binding<Float>) {
+        
         self._fps = fps
         self._background = background
         self._drawParticles = drawParticles
@@ -53,6 +56,7 @@ struct MetalView: UIViewRepresentable {
         self._cutoff = cutoff
         
         self._trailRadius = trailRadius
+        self._speedMultiplier = speedMultiplier
     }
 
     func makeUIView(context: Context) -> MTKView {
@@ -86,7 +90,8 @@ struct MetalView: UIViewRepresentable {
                                                     drawRadius: 2,
                                                     trailRadius: trailRadius,
                                                     cutoff: cutoff,
-                                                    falloff: falloff)
+                                                    falloff: falloff,
+                                                    speedMultiplier: speedMultiplier)
     }
     
     func makeCoordinator() -> Coordinator {
@@ -107,8 +112,10 @@ struct MetalView: UIViewRepresentable {
         
         var particleCount = 0
         
-        var maxSpeed: Float = 2.5
-        var minSpeed: Float = 2
+        var maxSpeed: Float = 1
+        var minSpeed: Float = 0.75
+        
+        
         var margin: Float = 50
         var radius: Float = 50
         
@@ -323,13 +330,14 @@ extension MetalView.Coordinator {
             let rotation = simd_float2x2(SIMD2<Float>(cos(angle), -sin(angle)), SIMD2<Float>(sin(angle), cos(angle)))
             speed = rotation * speed
             
+            let species = Float(Int.random(in: 0..<3))
             let position = SIMD2<Float>(Float.random(in: xRange), Float.random(in: yRange))
-            let particle = Particle(position: position, velocity: speed)
+            let particle = Particle(position: position, velocity: speed, species: species)
             particles.append(particle)
         }
         let size = particles.count * MemoryLayout<Particle>.size
         particleBuffer = metalDevice.makeBuffer(bytes: &particles, length: size, options: [])
-
+        
     }
     
     private func extractParticles() {
@@ -380,7 +388,8 @@ struct MetalView_Previews: PreviewProvider {
                   count: .constant(0),
                   falloff: .constant(0),
                   cutoff: .constant(0),
-                  trailRadius: .constant(0))
+                  trailRadius: .constant(0),
+                  speedMultiplier: .constant(0))
     }
 }
 
@@ -400,10 +409,11 @@ private struct Particle {
     var position: SIMD2<Float>
     var velocity: SIMD2<Float>
     var acceleration: SIMD2<Float> = SIMD2<Float>(0,0)
-    var force: SIMD2<Float> = SIMD2<Float>(0,0)
-
+    var species: Float
+    var bytes: Float = 0
+    
     var description: String {
-        return "p<\(position.x),\(position.y)> v<\(velocity.x),\(velocity.y)> a<\(acceleration.x),\(acceleration.y) f<\(force.x),\(force.y)>"
+        return "p<\(position.x),\(position.y)> v<\(velocity.x),\(velocity.y)> a<\(acceleration.x),\(acceleration.y)"
     }
 }
 
@@ -415,4 +425,5 @@ private struct ParticleConfig {
     var trailRadius: Float = 0
     var cutoff: Float = 0
     var falloff: Float = 0
+    var speedMultiplier: Float = 0
 }

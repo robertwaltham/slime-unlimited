@@ -16,17 +16,18 @@ struct ContentView: View {
     
     @State var sensorAngle: Float = Float.pi / 8
     @State var sensorDistance: Float = 10
-    @State var turnAngle: Float = Float.pi / 32
+    @State var turnAngle: Float = Float.pi / 16
     
     @State var cutoff: Float = 0.01
-    @State var falloff: Float = 0.05
-    @State var trailRadius: Float = 1
+    @State var falloff: Float = 0.02
+    @State var trailRadius: Float = 2
+    @State var speedMultiplier: Float = 2
 
     @State private var bgColor = Color(.sRGB, red: 0, green: 0, blue: 0,opacity: 0)
     
     @State var started: Bool
     
-    var particleCounts = [1024, 2048, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576]
+    var particleCounts = [1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576]
     @State var count = 8192
 
     var body: some View {
@@ -67,17 +68,18 @@ struct ContentView: View {
                           count: $count,
                           falloff: $falloff,
                           cutoff: $cutoff,
-                          trailRadius: $trailRadius)
+                          trailRadius: $trailRadius,
+                          speedMultiplier: $speedMultiplier)
                 
                 HStack(alignment: .center, spacing: 15) {
                     VStack {
-                        Text("Cutoff: \(cutoff, specifier: "%.2f")")
+                        Text("Speed: \(speedMultiplier, specifier: "%.2f")")
                             .font(.title)
-                        Slider(value: $cutoff, in: 0...0.2)
+                        Slider(value: $speedMultiplier, in: 0...4)
                     }
 
                     VStack {
-                        Text("Falloff: \(falloff, specifier: "%.2f")")
+                        Text("Falloff: \(falloff, specifier: "%.3f")")
                             .font(.title)
                         Slider(value: $falloff, in: 0.001...0.1)
                     }
