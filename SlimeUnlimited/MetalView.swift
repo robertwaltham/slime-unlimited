@@ -12,7 +12,6 @@ import simd
 
 struct MetalView: UIViewRepresentable {
     
-    @Binding var fps: Double
     @Binding var background: Color
     @Binding var drawParticles: Bool
     @Binding var drawPath: Bool
@@ -26,11 +25,12 @@ struct MetalView: UIViewRepresentable {
     @Binding var count: Int
     @Binding var trailRadius: Float
     @Binding var speedMultiplier: Float
+    
+    var viewModel: ViewModel
 
     typealias UIViewType = MTKView
     
-    init(fps: Binding<Double>,
-         background: Binding<Color>,
+    init(background: Binding<Color>,
          drawParticles: Binding<Bool>,
          drawPath: Binding<Bool>,
          sensorAngle: Binding<Float>,
@@ -40,9 +40,11 @@ struct MetalView: UIViewRepresentable {
          falloff: Binding<Float>,
          cutoff: Binding<Float>,
          trailRadius: Binding<Float>,
-         speedMultiplier: Binding<Float>) {
+         speedMultiplier: Binding<Float>,
+         viewModel: ViewModel) {
         
-        self._fps = fps
+        self.viewModel = viewModel
+        
         self._background = background
         self._drawParticles = drawParticles
         self._drawPath = drawPath
@@ -115,7 +117,6 @@ struct MetalView: UIViewRepresentable {
         var maxSpeed: Float = 1
         var minSpeed: Float = 0.75
         
-        
         var margin: Float = 50
         var radius: Float = 50
         
@@ -135,8 +136,12 @@ struct MetalView: UIViewRepresentable {
         
         var colours = RenderColours()
 
-        @Binding var fps: Double
+        @Binding var turnAngle: Float
+        @Binding var speedMultiplier: Float
+        @Binding var distance: Float
         
+        var viewModel: ViewModel
+
         
         private var lastDraw = Date()
 
@@ -153,7 +158,7 @@ struct MetalView: UIViewRepresentable {
             self.view = view
             
             let start = Date()
-            fps = 1 / start.timeIntervalSince(lastDraw)
+            viewModel.fps = 1 / start.timeIntervalSince(lastDraw)
             lastDraw = start
             
             draw()
@@ -165,7 +170,11 @@ struct MetalView: UIViewRepresentable {
                 self.metalDevice = metalDevice
             }
             
-            self._fps = parent._fps
+            self.viewModel = parent.viewModel
+            self._turnAngle = parent._turnAngle
+            self._speedMultiplier = parent._speedMultiplier
+            self._distance = parent._sensorDistance
+            
             super.init()
             
             guard self.metalDevice.supportsFamily(.common3) || self.metalDevice.supportsFamily(.apple4) else {
@@ -201,11 +210,19 @@ extension MetalView.Coordinator {
     }
 }
 
-// MARK:  - Metal
+// MARK: - Metal
 
 extension MetalView.Coordinator {
     
     func draw() {
+                
+        config.turnAngle = Float((sin(Date().timeIntervalSince1970 * 4) + 1.2) * 0.35)
+        config.speedMultiplier = Float((sin(Date().timeIntervalSince1970 * 3) + 1.5) * 1.75)
+        config.sensorDistance = Float((sin(Date().timeIntervalSince1970) + 2) * 5)
+
+        turnAngle = config.turnAngle
+        speedMultiplier = config.speedMultiplier
+        distance = config.sensorDistance
         
         initializeParticlesIfNeeded()
         
@@ -378,8 +395,7 @@ struct RenderColours {
 
 struct MetalView_Previews: PreviewProvider {
     static var previews: some View {
-        MetalView(fps: .constant(60),
-                  background: .constant(Color.gray),
+        MetalView(background: .constant(Color.gray),
                   drawParticles: .constant(false),
                   drawPath: .constant(true),
                   sensorAngle: .constant(0.5),
@@ -389,7 +405,8 @@ struct MetalView_Previews: PreviewProvider {
                   falloff: .constant(0),
                   cutoff: .constant(0),
                   trailRadius: .constant(0),
-                  speedMultiplier: .constant(0))
+                  speedMultiplier: .constant(0),
+                  viewModel: ViewModel())
     }
 }
 

@@ -10,7 +10,6 @@ import SwiftUI
 
 struct ContentView: View {
     
-    @State var fps: Double = 0
     @State var drawParticles: Bool = false
     @State var drawPath: Bool = true
     
@@ -29,6 +28,8 @@ struct ContentView: View {
     
     var particleCounts = [1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576]
     @State var count = 8192
+    
+    @StateObject var viewModel = ViewModel()
 
     var body: some View {
         
@@ -54,12 +55,11 @@ struct ContentView: View {
                     VStack {
                         Text("Turn Angle: \(turnAngle, specifier: "%.2f")")
                             .font(.title)
-                        Slider(value: $turnAngle, in: 0...Float.pi / 8)
+                        Slider(value: $turnAngle, in: 0...Float.pi / 4)
                     }
                 }.padding(5)
                 
-                MetalView(fps: $fps,
-                          background: $bgColor,
+                MetalView(background: $bgColor,
                           drawParticles: $drawParticles,
                           drawPath: $drawPath,
                           sensorAngle: $sensorAngle,
@@ -69,13 +69,14 @@ struct ContentView: View {
                           falloff: $falloff,
                           cutoff: $cutoff,
                           trailRadius: $trailRadius,
-                          speedMultiplier: $speedMultiplier)
+                          speedMultiplier: $speedMultiplier,
+                          viewModel: viewModel)
                 
                 HStack(alignment: .center, spacing: 15) {
                     VStack {
                         Text("Speed: \(speedMultiplier, specifier: "%.2f")")
                             .font(.title)
-                        Slider(value: $speedMultiplier, in: 0...4)
+                        Slider(value: $speedMultiplier, in: 0...6)
                     }
 
                     VStack {
@@ -103,7 +104,7 @@ struct ContentView: View {
                             .cornerRadius(40)
                         }
                         
-                        Text("FPS: \(fps, specifier: "%.0f")")
+                        Text("FPS: \(viewModel.fps, specifier: "%.0f")")
                             .frame(width: 60, height: 26.5, alignment: .center)
                             .padding(3)
                     }
@@ -146,6 +147,11 @@ struct ContentView: View {
         }
     
     }
+}
+
+class ViewModel: ObservableObject {
+    @Published var fps: Double = 0
+
 }
 
 struct ContentView_Previews: PreviewProvider {
