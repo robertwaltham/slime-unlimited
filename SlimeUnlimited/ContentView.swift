@@ -15,7 +15,8 @@ struct ContentView: View {
     
     @State var started: Bool
     @State var mutatePresented: Bool
-        
+    @State var settingsPresented: Bool = false
+
     @StateObject var viewModel = ViewModel()
 
     var body: some View {
@@ -23,97 +24,206 @@ struct ContentView: View {
         if (started) {
 
             VStack {
-                HStack(alignment: .center, spacing: 15) {
-                    VStack {
-                        Text("Sensor: \(viewModel.sensorAngle, specifier: "%.2f")")
-                            .font(.title)
-                        Slider(value: $viewModel.sensorAngle, in: 0...viewModel.maxSensorAngle)
-                    }
-                    VStack {
-                        Text("Distance: \(viewModel.sensorDistance, specifier: "%.2f")")
-                            .font(.title)
-                        Slider(value: $viewModel.sensorDistance, in: 0...viewModel.maxDistance)
-                    }
-                    VStack {
-                        Text("Turn: \(viewModel.turnAngle, specifier: "%.2f")")
-                            .font(.title)
-                        Slider(value: $viewModel.turnAngle, in: 0...viewModel.maxTurnAngle)
-                    }
-                    Button {
-                        mutatePresented = true
-                    } label: {
-                        Label("Mutate", systemImage: "figure.walk.circle.fill")
-                    }
-                    .buttonStyle(.bordered)
-                    .padding(10)
-                    .popover(isPresented: $mutatePresented) {
+                
+                if verticalSizeClass == .regular && horizontalSizeClass == .regular { // ipad
+
+                    HStack(alignment: .center, spacing: 15) {
                         VStack {
-                            Text("Mutate Simulation Parameters")
-                            HStack {
-                                Toggle("Distance", isOn: $viewModel.mutateDistance)
-                                Text("Phase: \(viewModel.mutateDistancePhase, specifier: "%.2f")")
-                                Slider(value: $viewModel.mutateDistancePhase, in: 1...viewModel.maxPhase)
-                            }
-                            HStack {
-                                Toggle("Angle", isOn: $viewModel.mutateAngle)
-                                Text("Phase: \(viewModel.mutateAnglePhase, specifier: "%.2f")")
-                                Slider(value: $viewModel.mutateAnglePhase, in: 1...viewModel.maxPhase)
-                            }
-                            HStack {
-                                Toggle("Speed", isOn: $viewModel.mutateSpeed)
-                                Text("Phase: \(viewModel.mutateSpeedPhase, specifier: "%.2f")")
-                                Slider(value: $viewModel.mutateSpeedPhase, in: 1...viewModel.maxPhase)
-                            }
+                            Text("Sensor: \(viewModel.sensorAngle, specifier: "%.2f")")
+                                .font(.title)
+                            Slider(value: $viewModel.sensorAngle, in: 0...viewModel.maxSensorAngle)
                         }
+                        VStack {
+                            Text("Distance: \(viewModel.sensorDistance, specifier: "%.2f")")
+                                .font(.title)
+                            Slider(value: $viewModel.sensorDistance, in: 0...viewModel.maxDistance)
+                        }
+                        VStack {
+                            Text("Turn: \(viewModel.turnAngle, specifier: "%.2f")")
+                                .font(.title)
+                            Slider(value: $viewModel.turnAngle, in: 0...viewModel.maxTurnAngle)
+                        }
+                        Button {
+                            mutatePresented = true
+                        } label: {
+                            Label("Mutate", systemImage: "figure.walk.circle.fill")
+                        }
+                        .buttonStyle(.bordered)
                         .padding(10)
-                        .frame(width: 500)
-                    }
-                }.padding(5)
+                        .popover(isPresented: $mutatePresented) {
+                            VStack {
+                                Text("Mutate Simulation Parameters")
+                                HStack {
+                                    Toggle("Distance", isOn: $viewModel.mutateDistance)
+                                    Text("Phase: \(viewModel.mutateDistancePhase, specifier: "%.2f")")
+                                    Slider(value: $viewModel.mutateDistancePhase, in: 1...viewModel.maxPhase)
+                                }
+                                HStack {
+                                    Toggle("Angle", isOn: $viewModel.mutateAngle)
+                                    Text("Phase: \(viewModel.mutateAnglePhase, specifier: "%.2f")")
+                                    Slider(value: $viewModel.mutateAnglePhase, in: 1...viewModel.maxPhase)
+                                }
+                                HStack {
+                                    Toggle("Speed", isOn: $viewModel.mutateSpeed)
+                                    Text("Phase: \(viewModel.mutateSpeedPhase, specifier: "%.2f")")
+                                    Slider(value: $viewModel.mutateSpeedPhase, in: 1...viewModel.maxPhase)
+                                }
+                            }
+                            .padding(10)
+                            .frame(width: 500)
+                        }
+                    }.padding(5)
+                } else { // iphone
+                    
+                }
                 
                 MetalView(viewModel: viewModel)
                 
-                HStack(alignment: .center, spacing: 15) {
-                    VStack {
-                        Text("Speed: \(viewModel.speedMultiplier, specifier: "%.2f")")
-                            .font(.title)
-                        Slider(value: $viewModel.speedMultiplier, in: 0...viewModel.maxMultiplier)
-                    }
+                if verticalSizeClass == .regular && horizontalSizeClass == .regular { // ipad
 
-                    VStack {
-                        Text("Falloff: \(viewModel.falloff, specifier: "%.3f")")
-                            .font(.title)
-                        Slider(value: $viewModel.falloff, in: 0...viewModel.maxFalloff)
-                    }
-                    
-                    VStack() {
-                        Text("Trail Size: \(Int(viewModel.trailRadius))").font(.title)
-                        Slider(value: $viewModel.trailRadius, in: 1...viewModel.maxRadius)
-                    }
+                    HStack(alignment: .center, spacing: 15) {
+                        VStack {
+                            Text("Speed: \(viewModel.speedMultiplier, specifier: "%.2f")")
+                                .font(.title)
+                            Slider(value: $viewModel.speedMultiplier, in: 0...viewModel.maxMultiplier)
+                        }
 
-                    VStack() {
-                        Button(action: {
-                            started = false
-                        }) {
-                            HStack {
-                                Image(systemName: "stop")
-                                    .font(.title)
-                            }
-                            .padding(10)
-                            .foregroundColor(.white)
-                            .background(Color.gray)
-                            .cornerRadius(40)
+                        VStack {
+                            Text("Falloff: \(viewModel.falloff, specifier: "%.3f")")
+                                .font(.title)
+                            Slider(value: $viewModel.falloff, in: 0...viewModel.maxFalloff)
                         }
                         
-                        Text("FPS: \(viewModel.fps, specifier: "%.0f")")
-                            .frame(width: 60, height: 26.5, alignment: .center)
-                            .padding(3)
+                        VStack() {
+                            Text("Trail Size: \(Int(viewModel.trailRadius))").font(.title)
+                            Slider(value: $viewModel.trailRadius, in: 1...viewModel.maxRadius)
+                        }
+
+                        VStack() {
+                            Button(action: {
+                                started = false
+                            }) {
+                                HStack {
+                                    Image(systemName: "stop")
+                                        .font(.title)
+                                }
+                                .padding(10)
+                                .foregroundColor(.white)
+                                .background(Color.gray)
+                                .cornerRadius(40)
+                            }
+                            
+                            Text("FPS: \(viewModel.fps, specifier: "%.0f")")
+                                .frame(width: 60, height: 26.5, alignment: .center)
+                                .padding(3)
+                        }
+              
+                    }.padding(10)
+                } else { // iphone
+                    
+                    HStack {
+                        
+                        Button {
+                            settingsPresented = true
+                        } label: {
+                            Label("Settings", systemImage: "figure.walk.circle.fill")
+                        }
+                        .buttonStyle(.bordered)
+                        .padding(10)
+                        .popover(isPresented: $settingsPresented) {
+                            VStack {
+                                Text("Simulation Settings").font(.title)
+                                Spacer()
+                                VStack {
+                                    Text("Sensor: \(viewModel.sensorAngle, specifier: "%.2f")")
+                                        .font(.title)
+                                    Slider(value: $viewModel.sensorAngle, in: 0...viewModel.maxSensorAngle)
+                                }
+                                VStack {
+                                    Text("Distance: \(viewModel.sensorDistance, specifier: "%.2f")")
+                                        .font(.title)
+                                    Slider(value: $viewModel.sensorDistance, in: 0...viewModel.maxDistance)
+                                }
+                                VStack {
+                                    Text("Turn: \(viewModel.turnAngle, specifier: "%.2f")")
+                                        .font(.title)
+                                    Slider(value: $viewModel.turnAngle, in: 0...viewModel.maxTurnAngle)
+                                }
+                                
+                                VStack {
+                                    Text("Speed: \(viewModel.speedMultiplier, specifier: "%.2f")")
+                                        .font(.title)
+                                    Slider(value: $viewModel.speedMultiplier, in: 0...viewModel.maxMultiplier)
+                                }
+
+                                VStack {
+                                    Text("Falloff: \(viewModel.falloff, specifier: "%.3f")")
+                                        .font(.title)
+                                    Slider(value: $viewModel.falloff, in: 0...viewModel.maxFalloff)
+                                }
+                                
+                                VStack() {
+                                    Text("Trail Size: \(Int(viewModel.trailRadius))").font(.title)
+                                    Slider(value: $viewModel.trailRadius, in: 1...viewModel.maxRadius)
+                                }
+                                
+                            }
+                            .padding(20)
+                        }
+                        
+                        Button {
+                            mutatePresented = true
+                        } label: {
+                            Label("Mutate", systemImage: "figure.walk.circle.fill")
+                        }
+                        .buttonStyle(.bordered)
+                        .padding(10)
+                        .popover(isPresented: $mutatePresented) {
+                            VStack {
+                                Text("Mutate Simulation Parameters").font(.title)
+                                Toggle("Distance", isOn: $viewModel.mutateDistance)
+                                HStack {
+                                    Text("Phase: \(viewModel.mutateDistancePhase, specifier: "%.2f")")
+                                    Slider(value: $viewModel.mutateDistancePhase, in: 1...viewModel.maxPhase)
+                                }
+                                Toggle("Angle", isOn: $viewModel.mutateAngle)
+                                HStack {
+                                    Text("Phase: \(viewModel.mutateAnglePhase, specifier: "%.2f")")
+                                    Slider(value: $viewModel.mutateAnglePhase, in: 1...viewModel.maxPhase)
+                                }
+                                Toggle("Speed", isOn: $viewModel.mutateSpeed)
+                                HStack {
+                                    Text("Phase: \(viewModel.mutateSpeedPhase, specifier: "%.2f")")
+                                    Slider(value: $viewModel.mutateSpeedPhase, in: 1...viewModel.maxPhase)
+                                }
+                            }
+                            .padding(20)
+                       
+                        }
+                        
+                        VStack() {
+                            Button(action: {
+                                started = false
+                            }) {
+                                HStack {
+                                    Image(systemName: "stop")
+                                        .font(.title)
+                                }
+                                .padding(10)
+                                .foregroundColor(.white)
+                                .background(Color.gray)
+                                .cornerRadius(40)
+                            }
+                            
+//                            Text("FPS: \(viewModel.fps, specifier: "%.0f")")
+//                                .frame(width: 60, height: 26.5, alignment: .center)
+//                                .padding(3)
+                        }
                     }
-          
-                }.padding(10)
+                }
             }
         } else {
             ZStack() {
-                
                 VStack() {
                     VStack() {
 
@@ -275,8 +385,17 @@ class ViewModel: ObservableObject {
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        ContentView(started: false, mutatePresented: false)
-        ContentView(started: true, mutatePresented: false)
-        ContentView(started: true, mutatePresented: true)
+        Group {
+            ContentView(started: false, mutatePresented: false).previewDevice("iPad Pro (9.7-inch)")
+            ContentView(started: true, mutatePresented: false).previewDevice("iPad Pro (9.7-inch)")
+            ContentView(started: true, mutatePresented: true).previewDevice("iPad Pro (9.7-inch)")
+        }
+        Group {
+            ContentView(started: false, mutatePresented: false).previewDevice("iPhone 13 Pro")
+            ContentView(started: true, mutatePresented: false).previewDevice("iPhone 13 Pro")
+            ContentView(started: true, mutatePresented: true).previewDevice("iPhone 13 Pro")
+            ContentView(started: true, mutatePresented: false, settingsPresented: true).previewDevice("iPhone 13 Pro")
+
+        }
     }
 }
