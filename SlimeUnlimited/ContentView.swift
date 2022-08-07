@@ -10,6 +10,8 @@ import SwiftUI
 
 struct ContentView: View {
 
+    @Environment(\.verticalSizeClass) var verticalSizeClass: UserInterfaceSizeClass?
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass: UserInterfaceSizeClass?
     
     @State var started: Bool
     @State var mutatePresented: Bool
@@ -117,25 +119,44 @@ struct ContentView: View {
 
                         Text("Slimes").font(.title)
 
-                        HStack() {
-                            Picker("Slime", selection: $viewModel.count) {
-                                ForEach(viewModel.particleCounts, id: \.self) {
-                                    Text("\($0.formatted(.number.grouping(.never)))")
+                        if verticalSizeClass == .regular && horizontalSizeClass == .regular { // ipad
+                            HStack() {
+                                Picker("Slime", selection: $viewModel.count) {
+                                    ForEach(viewModel.particleCounts, id: \.self) {
+                                        Text("\($0.formatted(.number.grouping(.never)))")
+                                    }
                                 }
-                            }
-                            .pickerStyle(WheelPickerStyle())
-                            .padding(5)
-                            
-                            Picker("Start", selection: $viewModel.startType) {
-                                ForEach(ViewModel.StartType.allCases) { type in
-                                    type.label.tag(type)
-                                }
-                            }
-                            .pickerStyle(WheelPickerStyle())
+                                .pickerStyle(WheelPickerStyle())
                                 .padding(5)
+                                
+                                Picker("Start", selection: $viewModel.startType) {
+                                    ForEach(ViewModel.StartType.allCases) { type in
+                                        type.label.tag(type)
+                                    }
+                                }
+                                .pickerStyle(WheelPickerStyle())
+                                    .padding(5)
+                            }
+                        } else { // iphone
+                            VStack() {
+                                Picker("Slime", selection: $viewModel.count) {
+                                    ForEach(viewModel.particleCounts, id: \.self) {
+                                        Text("\($0.formatted(.number.grouping(.never)))")
+                                    }
+                                }
+                                .pickerStyle(WheelPickerStyle())
+                                .padding(5)
+                                
+                                Picker("Start", selection: $viewModel.startType) {
+                                    ForEach(ViewModel.StartType.allCases) { type in
+                                        type.label.tag(type)
+                                    }
+                                }
+                                .pickerStyle(WheelPickerStyle())
+                                    .padding(5)
+                            }
                         }
-                    }.padding([.trailing, .leading], 100)
-
+                    }
                         
                     Button(action: {
                         started = true
@@ -154,13 +175,23 @@ struct ContentView: View {
                     }
                 }
                 
-                VStack() {
-                    Spacer()
-                    Toggle("Draw Particles", isOn: $viewModel.drawParticles).padding(.horizontal)
-                    Toggle("Draw Path", isOn: $viewModel.drawPath).padding(.horizontal)
+                if verticalSizeClass == .regular && horizontalSizeClass == .regular { // ipad
+                    VStack() {
+                        Spacer()
+                        Toggle("Draw Particles", isOn: $viewModel.drawParticles).padding(.horizontal)
+                        Toggle("Draw Path", isOn: $viewModel.drawPath).padding(.horizontal)
+                    }
+                    .padding(.horizontal, 200)
+                    .padding(.bottom, 20)
+                } else { // iphone
+                    VStack() {
+                        Spacer()
+                        HStack() {
+                            Toggle("Particles", isOn: $viewModel.drawParticles)
+                            Toggle("Path", isOn: $viewModel.drawPath)
+                        }.padding()
+                    }
                 }
-                .padding(.horizontal, 200)
-                .padding(.bottom, 20)
             }
         }
     }
