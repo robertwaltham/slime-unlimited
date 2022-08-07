@@ -163,11 +163,20 @@ extension MetalView.Coordinator {
     
     func draw() {
                 
-//        let time = Date().timeIntervalSince1970
-//        viewModel.turnAngle = wave(time: time, phase: 4, phaseOffset: 0, magitude: 0.35, magnitudeOffset: 1.2)
-//        viewModel.speedMultiplier = wave(time: time, phase: 3, phaseOffset: 0, magitude: 1.75, magnitudeOffset: 1.5)
-//        viewModel.sensorDistance = wave(time: time, phase: 1, phaseOffset: 0, magitude: 5, magnitudeOffset: 2)
-//        config = viewModel.particleConfig()
+        let time = Date().timeIntervalSince1970
+        
+        if viewModel.mutateDistance {
+            viewModel.sensorDistance = wave(time: time, phase: viewModel.mutateDistancePhase, phaseOffset: 0, magitude: 5, magnitudeOffset: 2)
+        }
+        
+        if viewModel.mutateAngle {
+            viewModel.turnAngle = wave(time: time, phase: viewModel.mutateAnglePhase, phaseOffset: 0, magitude: 0.35, magnitudeOffset: 1.2)
+        }
+        
+        if viewModel.mutateSpeed {
+            viewModel.speedMultiplier = wave(time: time, phase: viewModel.mutateSpeedPhase, phaseOffset: 0, magitude: 1.75, magnitudeOffset: 1.5)
+        }
+        config = viewModel.particleConfig()
         
         initializeParticlesIfNeeded()
         

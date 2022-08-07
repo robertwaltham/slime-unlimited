@@ -12,7 +12,8 @@ struct ContentView: View {
 
     
     @State var started: Bool
-    
+    @State var mutatePresented: Bool
+        
     @StateObject var viewModel = ViewModel()
 
     var body: some View {
@@ -37,12 +38,34 @@ struct ContentView: View {
                         Slider(value: $viewModel.turnAngle, in: 0...viewModel.maxTurnAngle)
                     }
                     Button {
-                        
+                        mutatePresented = true
                     } label: {
                         Label("Mutate", systemImage: "figure.walk.circle.fill")
                     }
                     .buttonStyle(.bordered)
                     .padding(10)
+                    .popover(isPresented: $mutatePresented) {
+                        VStack {
+                            Text("Mutate Simulation Parameters")
+                            HStack {
+                                Toggle("Distance", isOn: $viewModel.mutateDistance)
+                                Text("Phase: \(viewModel.mutateDistancePhase, specifier: "%.2f")")
+                                Slider(value: $viewModel.mutateDistancePhase, in: 1...viewModel.maxPhase)
+                            }
+                            HStack {
+                                Toggle("Angle", isOn: $viewModel.mutateAngle)
+                                Text("Phase: \(viewModel.mutateAnglePhase, specifier: "%.2f")")
+                                Slider(value: $viewModel.mutateAnglePhase, in: 1...viewModel.maxPhase)
+                            }
+                            HStack {
+                                Toggle("Speed", isOn: $viewModel.mutateSpeed)
+                                Text("Phase: \(viewModel.mutateSpeedPhase, specifier: "%.2f")")
+                                Slider(value: $viewModel.mutateSpeedPhase, in: 1...viewModel.maxPhase)
+                            }
+                        }
+                        .padding(10)
+                        .frame(width: 500)
+                    }
                 }.padding(5)
                 
                 MetalView(viewModel: viewModel)
@@ -157,6 +180,16 @@ class ViewModel: ObservableObject {
     let maxRadius: Float = 4
     let maxMultiplier: Float = 6
     
+    @Published var mutateDistance = false
+    @Published var mutateAngle = false
+    @Published var mutateSpeed = false
+    
+    @Published var mutateDistancePhase: Double = 1
+    @Published var mutateAnglePhase: Double = 1
+    @Published var mutateSpeedPhase: Double = 1
+    
+    let maxPhase: Double = 4
+
     let particleCounts: [Int] = (12...20).map{ Int(pow(Double(2), Double($0))) }
     @Published var count = 8192
     
@@ -176,7 +209,8 @@ class ViewModel: ObservableObject {
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        ContentView(started: false)
-        ContentView(started: true)
+        ContentView(started: false, mutatePresented: false)
+        ContentView(started: true, mutatePresented: false)
+        ContentView(started: true, mutatePresented: true)
     }
 }
