@@ -293,16 +293,58 @@ extension MetalView.Coordinator {
         let speedRange = minSpeed...maxSpeed
         let xRange = margin...(Float(viewPortSize.x) - margin)
         let yRange = margin...(Float(viewPortSize.y) - margin)
+        let lineSpace: Float = 100
 
-        for _ in 0 ..< particleCount {
+        for i in 0 ..< particleCount {
             var speed = SIMD2<Float>(Float.random(in: speedRange), 0)
-            let angle = Float.random(in: 0...Float.pi * 2)
+            var species = Float(Int.random(in: 0..<3))
+            let position: SIMD2<Float>
             
-            let rotation = simd_float2x2(SIMD2<Float>(cos(angle), -sin(angle)), SIMD2<Float>(sin(angle), cos(angle)))
-            speed = rotation * speed
+            switch viewModel.startType {
+                
+            case .random:
+                position = SIMD2<Float>(Float.random(in: xRange), Float.random(in: yRange))
+                let angle = Float.random(in: 0...Float.pi * 2)
+                let rotation = simd_float2x2(SIMD2<Float>(cos(angle), -sin(angle)), SIMD2<Float>(sin(angle), cos(angle)))
+                speed = rotation * speed
+                
+            case .circle:
+                position = SIMD2<Float>(Float(viewPortSize.x / 2), Float(viewPortSize.y / 2))
+                let angle = Float.random(in: 0...Float.pi * 2)
+                
+                let rotation = simd_float2x2(SIMD2<Float>(cos(angle), -sin(angle)), SIMD2<Float>(sin(angle), cos(angle)))
+                speed = rotation * speed
+                
+            case .grid:
+                
+                if i < particleCount / 2 {
+                    
+                    let xLinePosition = round(Float.random(in: xRange) / lineSpace)
+                    let xPosition = xLinePosition * lineSpace
+                    position = SIMD2<Float>(xPosition, Float.random(in: yRange))
+                    speed = SIMD2<Float>(0, Float.random(in: speedRange))
+                    species = 0
+                } else {
+                    
+                    let yLinePosition = round(Float.random(in: yRange) / lineSpace)
+                    let yPosition = yLinePosition * lineSpace
+                    position = SIMD2<Float>(Float.random(in: xRange), yPosition)
+                    speed = SIMD2<Float>(Float.random(in: speedRange), 0)
+                    species = 1
+                }
+                
+            case.lines:
+                
+                let xLinePosition = round(Float.random(in: xRange) / lineSpace)
+                let xPosition = xLinePosition * lineSpace
+                position = SIMD2<Float>(xPosition, Float.random(in: yRange))
+                speed = SIMD2<Float>(0, Float.random(in: speedRange))
+                if i % 2 == 0 {
+                    speed.y *= -1
+                }
+                species = xLinePosition.truncatingRemainder(dividingBy: 3)
+            }
             
-            let species = Float(Int.random(in: 0..<3))
-            let position = SIMD2<Float>(Float.random(in: xRange), Float.random(in: yRange))
             let particle = Particle(position: position, velocity: speed, species: species)
             particles.append(particle)
         }

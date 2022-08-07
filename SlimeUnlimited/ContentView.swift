@@ -115,15 +115,25 @@ struct ContentView: View {
                 VStack() {
                     VStack() {
 
-                        Text("Slime Count").font(.title)
+                        Text("Slimes").font(.title)
 
-                        Picker("Slime", selection: $viewModel.count) {
-                            ForEach(viewModel.particleCounts, id: \.self) {
-                                Text("\($0.formatted(.number.grouping(.never)))")
+                        HStack() {
+                            Picker("Slime", selection: $viewModel.count) {
+                                ForEach(viewModel.particleCounts, id: \.self) {
+                                    Text("\($0.formatted(.number.grouping(.never)))")
+                                }
                             }
+                            .pickerStyle(WheelPickerStyle())
+                            .padding(5)
+                            
+                            Picker("Start", selection: $viewModel.startType) {
+                                ForEach(ViewModel.StartType.allCases) { type in
+                                    type.label.tag(type)
+                                }
+                            }
+                            .pickerStyle(WheelPickerStyle())
+                                .padding(5)
                         }
-                        .pickerStyle(WheelPickerStyle())
-                        .padding(20)
                     }.padding([.trailing, .leading], 100)
 
                         
@@ -157,10 +167,35 @@ struct ContentView: View {
 }
 
 class ViewModel: ObservableObject {
+    
+    enum StartType: Int, CaseIterable, Identifiable {
+        case random = 1
+        case lines = 2
+        case grid = 3
+        case circle = 4
+        
+        var id: String { self.rawValue.description }
+        
+        var label : some View {
+            switch(self) {
+            
+            case .random:
+                return Label("Random", systemImage: "square")
+            case .lines:
+                return Label("Lines", systemImage: "equal")
+            case .grid:
+                return Label("Grid", systemImage: "number")
+            case .circle:
+                return Label("Circle", systemImage: "circle")
+            }
+        }
+    }
+    
     @Published var fps: Double = 0
 
     @Published var drawParticles: Bool = false
     @Published var drawPath: Bool = true
+    @Published var startType: StartType = .random
     
     @Published var sensorAngle: Float = Float.pi / 8
     @Published var sensorDistance: Float = 10
