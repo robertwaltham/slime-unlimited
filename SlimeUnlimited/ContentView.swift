@@ -20,14 +20,9 @@ struct ContentView: View {
         if (started) {
 
             VStack {
-                HStack {
-                    Toggle("Draw Particles", isOn: $viewModel.drawParticles).padding(.horizontal)
-                    Toggle("Draw Path", isOn: $viewModel.drawPath).padding(.horizontal)
-                }
-                
                 HStack(alignment: .center, spacing: 15) {
                     VStack {
-                        Text("Sensor Angle: \(viewModel.sensorAngle, specifier: "%.2f")")
+                        Text("Sensor: \(viewModel.sensorAngle, specifier: "%.2f")")
                             .font(.title)
                         Slider(value: $viewModel.sensorAngle, in: 0...viewModel.maxSensorAngle)
                     }
@@ -37,10 +32,17 @@ struct ContentView: View {
                         Slider(value: $viewModel.sensorDistance, in: 0...viewModel.maxDistance)
                     }
                     VStack {
-                        Text("Turn Angle: \(viewModel.turnAngle, specifier: "%.2f")")
+                        Text("Turn: \(viewModel.turnAngle, specifier: "%.2f")")
                             .font(.title)
                         Slider(value: $viewModel.turnAngle, in: 0...viewModel.maxTurnAngle)
                     }
+                    Button {
+                        
+                    } label: {
+                        Label("Mutate", systemImage: "figure.walk.circle.fill")
+                    }
+                    .buttonStyle(.bordered)
+                    .padding(10)
                 }.padding(5)
                 
                 MetalView(viewModel: viewModel)
@@ -85,40 +87,49 @@ struct ContentView: View {
                 }.padding(10)
             }
         } else {
-            VStack() {
-                LazyVStack() {
+            ZStack() {
+                
+                VStack() {
+                    VStack() {
 
-                    Text("Slime Count").font(.title)
+                        Text("Slime Count").font(.title)
 
-                    Picker("Slime", selection: $viewModel.count) {
-                        ForEach(viewModel.particleCounts, id: \.self) {
-                            Text("\($0.formatted(.number.grouping(.never)))")
+                        Picker("Slime", selection: $viewModel.count) {
+                            ForEach(viewModel.particleCounts, id: \.self) {
+                                Text("\($0.formatted(.number.grouping(.never)))")
+                            }
                         }
-                    }
-                    .pickerStyle(WheelPickerStyle())
-                    .padding(20)
-                }.padding([.trailing, .leading], 100)
+                        .pickerStyle(WheelPickerStyle())
+                        .padding(20)
+                    }.padding([.trailing, .leading], 100)
 
-                    
-                Button(action: {
-                    started = true
-                }) {
-                    HStack {
-                        Image(systemName: "play")
-                            .font(.title)
-                        Text("Start")
-                            .fontWeight(.semibold)
-                            .font(.title)
+                        
+                    Button(action: {
+                        started = true
+                    }) {
+                        HStack {
+                            Image(systemName: "play")
+                                .font(.title)
+                            Text("Start")
+                                .fontWeight(.semibold)
+                                .font(.title)
+                        }
+                        .padding()
+                        .foregroundColor(.white)
+                        .background(Color.blue)
+                        .cornerRadius(40)
                     }
-                    .padding()
-                    .foregroundColor(.white)
-                    .background(Color.blue)
-                    .cornerRadius(40)
                 }
-                          
+                
+                VStack() {
+                    Spacer()
+                    Toggle("Draw Particles", isOn: $viewModel.drawParticles).padding(.horizontal)
+                    Toggle("Draw Path", isOn: $viewModel.drawPath).padding(.horizontal)
+                }
+                .padding(.horizontal, 200)
+                .padding(.bottom, 20)
             }
         }
-    
     }
 }
 
