@@ -12,7 +12,7 @@ import simd
 
 struct MetalView: UIViewRepresentable {
     
-    var viewModel: ViewModel
+    @ObservedObject var viewModel: ViewModel
 
     typealias UIViewType = MTKView
     
@@ -157,15 +157,17 @@ extension MetalView.Coordinator {
 
 extension MetalView.Coordinator {
     
+    func wave(time: Double, phase: Double, phaseOffset: Double, magitude: Double, magnitudeOffset: Double) -> Float {
+        return Float((sin(time * phase + phaseOffset) + magnitudeOffset) * magitude)
+    }
+    
     func draw() {
                 
-        config.turnAngle = Float((sin(Date().timeIntervalSince1970 * 4) + 1.2) * 0.35)
-        config.speedMultiplier = Float((sin(Date().timeIntervalSince1970 * 3) + 1.5) * 1.75)
-        config.sensorDistance = Float((sin(Date().timeIntervalSince1970) + 2) * 5)
-
-        viewModel.turnAngle = config.turnAngle
-        viewModel.speedMultiplier = config.speedMultiplier
-        viewModel.sensorDistance = config.sensorDistance
+//        let time = Date().timeIntervalSince1970
+//        viewModel.turnAngle = wave(time: time, phase: 4, phaseOffset: 0, magitude: 0.35, magnitudeOffset: 1.2)
+//        viewModel.speedMultiplier = wave(time: time, phase: 3, phaseOffset: 0, magitude: 1.75, magnitudeOffset: 1.5)
+//        viewModel.sensorDistance = wave(time: time, phase: 1, phaseOffset: 0, magitude: 5, magnitudeOffset: 2)
+//        config = viewModel.particleConfig()
         
         initializeParticlesIfNeeded()
         
@@ -297,7 +299,6 @@ extension MetalView.Coordinator {
         }
         let size = particles.count * MemoryLayout<Particle>.size
         particleBuffer = metalDevice.makeBuffer(bytes: &particles, length: size, options: [])
-        
     }
     
     private func extractParticles() {

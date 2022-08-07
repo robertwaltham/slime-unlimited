@@ -29,17 +29,17 @@ struct ContentView: View {
                     VStack {
                         Text("Sensor Angle: \(viewModel.sensorAngle, specifier: "%.2f")")
                             .font(.title)
-                        Slider(value: $viewModel.sensorAngle, in: 0...Float.pi / 2)
+                        Slider(value: $viewModel.sensorAngle, in: 0...viewModel.maxSensorAngle)
                     }
                     VStack {
                         Text("Distance: \(viewModel.sensorDistance, specifier: "%.2f")")
                             .font(.title)
-                        Slider(value: $viewModel.sensorDistance, in: 0...15)
+                        Slider(value: $viewModel.sensorDistance, in: 0...viewModel.maxDistance)
                     }
                     VStack {
                         Text("Turn Angle: \(viewModel.turnAngle, specifier: "%.2f")")
                             .font(.title)
-                        Slider(value: $viewModel.turnAngle, in: 0...Float.pi / 4)
+                        Slider(value: $viewModel.turnAngle, in: 0...viewModel.maxTurnAngle)
                     }
                 }.padding(5)
                 
@@ -49,18 +49,18 @@ struct ContentView: View {
                     VStack {
                         Text("Speed: \(viewModel.speedMultiplier, specifier: "%.2f")")
                             .font(.title)
-                        Slider(value: $viewModel.speedMultiplier, in: 0...6)
+                        Slider(value: $viewModel.speedMultiplier, in: 0...viewModel.maxMultiplier)
                     }
 
                     VStack {
                         Text("Falloff: \(viewModel.falloff, specifier: "%.3f")")
                             .font(.title)
-                        Slider(value: $viewModel.falloff, in: 0.001...0.1)
+                        Slider(value: $viewModel.falloff, in: 0...viewModel.maxFalloff)
                     }
                     
                     VStack() {
                         Text("Trail Size: \(Int(viewModel.trailRadius))").font(.title)
-                        Slider(value: $viewModel.trailRadius, in: 1...5)
+                        Slider(value: $viewModel.trailRadius, in: 1...viewModel.maxRadius)
                     }
 
                     VStack() {
@@ -132,13 +132,21 @@ class ViewModel: ObservableObject {
     @Published var sensorDistance: Float = 10
     @Published var turnAngle: Float = Float.pi / 16
     
+    let maxSensorAngle = Float.pi / 2
+    let maxDistance: Float = 15
+    let maxTurnAngle = Float.pi / 4
+    
     @Published var cutoff: Float = 0.01
     @Published var falloff: Float = 0.02
     @Published var trailRadius: Float = 2
     @Published var speedMultiplier: Float = 2
     
+    let maxCutoff: Float = 1
+    let maxFalloff: Float = 0.15
+    let maxRadius: Float = 4
+    let maxMultiplier: Float = 6
     
-    let particleCounts = [2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576]
+    let particleCounts: [Int] = (12...20).map{ Int(pow(Double(2), Double($0))) }
     @Published var count = 8192
     
     @Published var bgColor = Color(.sRGB, red: 0, green: 0, blue: 0,opacity: 0)
