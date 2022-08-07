@@ -12,53 +12,12 @@ import simd
 
 struct MetalView: UIViewRepresentable {
     
-    @Binding var background: Color
-    @Binding var drawParticles: Bool
-    @Binding var drawPath: Bool
-    
-    @Binding var sensorAngle: Float
-    @Binding var sensorDistance: Float
-    @Binding var turnAngle: Float
-    
-    @Binding var falloff: Float
-    @Binding var cutoff: Float
-    @Binding var count: Int
-    @Binding var trailRadius: Float
-    @Binding var speedMultiplier: Float
-    
     var viewModel: ViewModel
 
     typealias UIViewType = MTKView
     
-    init(background: Binding<Color>,
-         drawParticles: Binding<Bool>,
-         drawPath: Binding<Bool>,
-         sensorAngle: Binding<Float>,
-         sensorDistance: Binding<Float>,
-         turnAngle: Binding<Float>,
-         count: Binding<Int>,
-         falloff: Binding<Float>,
-         cutoff: Binding<Float>,
-         trailRadius: Binding<Float>,
-         speedMultiplier: Binding<Float>,
-         viewModel: ViewModel) {
-        
+    init(viewModel: ViewModel) {
         self.viewModel = viewModel
-        
-        self._background = background
-        self._drawParticles = drawParticles
-        self._drawPath = drawPath
-        
-        self._sensorAngle = sensorAngle
-        self._sensorDistance = sensorDistance
-        self._turnAngle = turnAngle
-        
-        self._count = count
-        self._falloff = falloff
-        self._cutoff = cutoff
-        
-        self._trailRadius = trailRadius
-        self._speedMultiplier = speedMultiplier
     }
 
     func makeUIView(context: Context) -> MTKView {
@@ -82,18 +41,11 @@ struct MetalView: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: MTKView, context: Context) {
-        context.coordinator.colours.background = background.float4()
-        context.coordinator.drawParticles = drawParticles
-        context.coordinator.drawPath = drawPath
-        context.coordinator.particleCount = count
-        context.coordinator.config = ParticleConfig(sensorAngle: sensorAngle,
-                                                    sensorDistance: sensorDistance,
-                                                    turnAngle: turnAngle,
-                                                    drawRadius: 2,
-                                                    trailRadius: trailRadius,
-                                                    cutoff: cutoff,
-                                                    falloff: falloff,
-                                                    speedMultiplier: speedMultiplier)
+        context.coordinator.colours.background = viewModel.bgColor.float4()
+        context.coordinator.drawParticles = viewModel.drawParticles
+        context.coordinator.drawPath = viewModel.drawPath
+        context.coordinator.particleCount = viewModel.count
+        context.coordinator.config = viewModel.particleConfig()
     }
     
     func makeCoordinator() -> Coordinator {
@@ -135,13 +87,7 @@ struct MetalView: UIViewRepresentable {
 //        var obstacles = [Obstacle]()
         
         var colours = RenderColours()
-
-        @Binding var turnAngle: Float
-        @Binding var speedMultiplier: Float
-        @Binding var distance: Float
-        
         var viewModel: ViewModel
-
         
         private var lastDraw = Date()
 
@@ -171,10 +117,7 @@ struct MetalView: UIViewRepresentable {
             }
             
             self.viewModel = parent.viewModel
-            self._turnAngle = parent._turnAngle
-            self._speedMultiplier = parent._speedMultiplier
-            self._distance = parent._sensorDistance
-            
+
             super.init()
             
             guard self.metalDevice.supportsFamily(.common3) || self.metalDevice.supportsFamily(.apple4) else {
@@ -220,9 +163,9 @@ extension MetalView.Coordinator {
         config.speedMultiplier = Float((sin(Date().timeIntervalSince1970 * 3) + 1.5) * 1.75)
         config.sensorDistance = Float((sin(Date().timeIntervalSince1970) + 2) * 5)
 
-        turnAngle = config.turnAngle
-        speedMultiplier = config.speedMultiplier
-        distance = config.sensorDistance
+        viewModel.turnAngle = config.turnAngle
+        viewModel.speedMultiplier = config.speedMultiplier
+        viewModel.sensorDistance = config.sensorDistance
         
         initializeParticlesIfNeeded()
         
@@ -395,18 +338,7 @@ struct RenderColours {
 
 struct MetalView_Previews: PreviewProvider {
     static var previews: some View {
-        MetalView(background: .constant(Color.gray),
-                  drawParticles: .constant(false),
-                  drawPath: .constant(true),
-                  sensorAngle: .constant(0.5),
-                  sensorDistance: .constant(0.5),
-                  turnAngle: .constant(0.5),
-                  count: .constant(0),
-                  falloff: .constant(0),
-                  cutoff: .constant(0),
-                  trailRadius: .constant(0),
-                  speedMultiplier: .constant(0),
-                  viewModel: ViewModel())
+        MetalView(viewModel: ViewModel())
     }
 }
 
@@ -434,7 +366,7 @@ private struct Particle {
     }
 }
 
-private struct ParticleConfig {
+struct ParticleConfig {
     var sensorAngle: Float = 0
     var sensorDistance: Float = 0
     var turnAngle: Float = 0
